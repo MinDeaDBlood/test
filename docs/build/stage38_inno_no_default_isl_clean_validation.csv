@@ -1,0 +1,6 @@
+check,status,details
+no_default_isl,passed,Installer\Default.isl is not present
+no_temp_default_creation,passed,BuildInstaller.ps1 does not create Installer\Default.isl
+no_messages_section,passed,Installer\dt.iss does not contain a [Messages] section
+english_single_source,passed,English installer localization is Installer\Languages\English.isl
+custom_messages_present,passed,All installer .isl files keep [CustomMessages] for DISMTools project strings

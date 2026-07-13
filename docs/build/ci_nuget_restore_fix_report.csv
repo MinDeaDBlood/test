@@ -1,0 +1,4 @@
+item,status,details
+pkgsrc.zip,removed,root package archive is not used anymore
+.gitattributes,updated,root pkgsrc.zip rule removed
+tools/build/pkgsrc.bundle,kept,only package archive used by PrepareNuGetPackages.ps1

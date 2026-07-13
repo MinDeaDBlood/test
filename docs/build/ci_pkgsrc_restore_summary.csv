@@ -1,0 +1,4 @@
+item,status,details
+tools/build/pkgsrc.bundle,primary,size=40103364
+pkgsrc.zip,removed,not used by the package preparation script
+PrepareNuGetPackages.ps1,strict,requires tools/build/pkgsrc.bundle

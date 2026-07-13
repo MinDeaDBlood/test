@@ -1,0 +1,11 @@
+file,section,key,present
+en-US.ini,MainForm,NewsFeed.LastUpdatedPrefix,True
+en-US.ini,MainForm,NewsFeed.NoErrorDetails,True
+es-ES.ini,MainForm,NewsFeed.LastUpdatedPrefix,True
+es-ES.ini,MainForm,NewsFeed.NoErrorDetails,True
+fr-FR.ini,MainForm,NewsFeed.LastUpdatedPrefix,True
+fr-FR.ini,MainForm,NewsFeed.NoErrorDetails,True
+it-IT.ini,MainForm,NewsFeed.LastUpdatedPrefix,True
+it-IT.ini,MainForm,NewsFeed.NoErrorDetails,True
+pt-PT.ini,MainForm,NewsFeed.LastUpdatedPrefix,True
+pt-PT.ini,MainForm,NewsFeed.NoErrorDetails,True

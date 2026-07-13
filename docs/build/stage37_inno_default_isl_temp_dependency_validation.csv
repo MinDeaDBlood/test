@@ -1,0 +1,6 @@
+check,status,details
+build_installer_creates_temp_default_isl,passed,BuildInstaller.ps1 creates Installer\Default.isl from Installer\Languages\English.isl only while ISCC.exe is running
+build_installer_removes_temp_default_isl,passed,BuildInstaller.ps1 removes temporary Installer\Default.isl in the finally block
+verify_blocks_leftover_default_isl,passed,VerifyInstallerLocalization.ps1 fails if Installer\Default.isl remains after build
+dt_iss_no_compiler_default,passed,Installer\dt.iss does not use compiler:Default.isl
+editable_english_language_file,passed,Installer\Languages\English.isl remains the only editable English installer language file

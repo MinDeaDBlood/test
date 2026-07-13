@@ -1,0 +1,6 @@
+Check,Result,Notes
+GetKitsRoot has RegistryKey null check,Pass,Missing ADK registry key is handled without NullReference
+GetFileAssociationCmdline has empty FileType check,Pass,Empty root class returns empty command
+GetFileAssociationCmdline has RegistryKey null check,Pass,Missing association command key is handled without NullReference
+GetFileAssociationIconPath has RegistryKey null check,Pass,Missing DefaultIcon key is handled without NullReference
+DetectFileAssociations handles empty command line,Pass,Unregistered association returns False before parsing command path

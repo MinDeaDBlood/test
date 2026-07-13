@@ -1,0 +1,7 @@
+item,status,details
+PrepareNuGetPackages.ps1,updated,uses tools/build/pkgsrc.bundle only
+pkgsrc.zip,removed,not used as package source anymore
+DISMTOOLS_ALLOW_ONLINE_NUGET_RESTORE,removed,not used by package preparation script anymore
+.gitattributes,updated,root pkgsrc.zip rule removed
+.gitignore,updated,root pkgsrc.zip ignore rule removed
+updatelocalpkg.bat,kept,creates tools/build/pkgsrc.bundle

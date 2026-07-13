@@ -1,0 +1,12 @@
+check,result,details
+log_error,confirmed,"Installer dt.iss referenced Installer\\files\\DT_WinADK.reg, but that file was not present in the generated installer input directory"
+root_cause,confirmed,"Tools\\DT_WinADK.reg was referenced by DISMTools.vbproj and Installer\\dt.iss, but the source file did not exist in the repository"
+file_added,done,"Tools\\DT_WinADK.reg"
+project_include_added,done,"DISMTools.vbproj now includes Tools\\DT_WinADK.reg"
+post_build_copy,verified,"Post build still copies Tools\\DT_WinADK.reg to the target output directory"
+installer_source,verified,"Installer\\dt.iss still packages .\\files\\DT_WinADK.reg"
+xml_validation,passed,"DISMTools.vbproj parses as XML"
+localization_validation,passed,"validate_localization.py completed successfully"
+localization_candidate_scan,passed,"scan_localization_candidates.py reports zero unclassified localization candidates"
+deep_localization_audit,passed,"deep_localization_audit.py reports zero deep UI localization candidates"
+zip_validation,passed,"Archive was tested after packaging"

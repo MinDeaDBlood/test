@@ -1,0 +1,6 @@
+check,status,details
+compiler_directory,passed,Inno Setup compiler files are stored in Installer\Compiler
+compiler_default_isl,passed,Compiler Default.isl is stored next to ISCC.exe as runtime dependency
+installer_root_default_absent,passed,Installer\Default.isl is not used
+installer_languages_single_place,passed,Editable installer languages stay in Installer\Languages
+build_script_uses_compiler_dir,passed,BuildInstaller.ps1 runs Installer\Compiler\ISCC.exe

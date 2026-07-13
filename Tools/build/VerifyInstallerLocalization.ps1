@@ -1,0 +1,154 @@
+$ErrorActionPreference = "Stop"
+
+function Fail([string]$Message) {
+    throw $Message
+}
+
+$root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$buildLanguageDir = Join-Path $root "bin\Debug\language"
+$installerPayloadLanguageDir = Join-Path $root "Installer\files\language"
+$installerLanguageDir = Join-Path $root "Installer\Languages"
+$installerScriptPath = Join-Path $root "Installer\dt.iss"
+$installerRootDefaultMessagesPath = Join-Path $root "Installer\Default.isl"
+$compilerDefaultMessagesPath = Join-Path $root "Installer\Compiler\Default.isl"
+$installerOutputPath = Join-Path $root "Installer\Output\dt_setup.exe"
+
+$requiredMainFiles = @("en-US.ini", "es-ES.ini", "fr-FR.ini", "pt-PT.ini", "it-IT.ini")
+$requiredMainMarkers = @(
+    "[Designer.Main]",
+    "[Designer.ExceptionForm]",
+    "[Main.News]",
+    "[Main.News.Load]",
+    "[Main.News.Error]",
+    "NewProject.Button=",
+    "Retry.Button=",
+    "NoDetails.Message="
+)
+
+foreach ($dir in @($buildLanguageDir, $installerPayloadLanguageDir)) {
+    if (-not (Test-Path -LiteralPath $dir)) {
+        Fail "Localization directory is missing: $dir"
+    }
+
+    foreach ($fileName in $requiredMainFiles) {
+        $filePath = Join-Path $dir $fileName
+        if (-not (Test-Path -LiteralPath $filePath)) {
+            Fail "Localization file is missing: $filePath"
+        }
+    }
+
+    $englishFile = Join-Path $dir "en-US.ini"
+    $englishText = Get-Content -LiteralPath $englishFile -Raw -Encoding UTF8
+    foreach ($marker in $requiredMainMarkers) {
+        if (-not $englishText.Contains($marker)) {
+            Fail "Required localization marker '$marker' was not found in $englishFile"
+        }
+    }
+
+    Write-Host "Main localization payload verified: $dir"
+}
+
+if (-not (Test-Path -LiteralPath $installerScriptPath)) {
+    Fail "Installer script was not found: $installerScriptPath"
+}
+
+$installerScriptText = Get-Content -LiteralPath $installerScriptPath -Raw -Encoding UTF8
+if ($installerScriptText -match '#define\s+pfDir\s+"\{commonpf\}\\DISMTools\\Stable"') {
+    Fail "Stable installer must install to C:\Program Files\DISMTools, not C:\Program Files\DISMTools\Stable."
+}
+
+$installerUsesPreviewName = $installerScriptText -match '#define\s+scName\s+"DISMTools Preview"'
+if ($installerUsesPreviewName) {
+    if ($installerScriptText -notmatch '#define\s+pfDir\s+"\{commonpf\}\\DISMTools\\Preview"') {
+        Fail "Preview installer must install to C:\Program Files\DISMTools\Preview."
+    }
+} else {
+    if ($installerScriptText -notmatch '#define\s+pfDir\s+"\{commonpf\}\\DISMTools"') {
+        Fail "Stable installer must install to C:\Program Files\DISMTools."
+    }
+}
+
+if ($installerScriptText -match "compiler:Default\.isl") {
+    Fail "Installer script must not use compiler:Default.isl. English must be loaded from Installer\Languages\English.isl."
+}
+
+if ($installerScriptText -match "(?m)^\[Messages\]\s*$") {
+    Fail "Installer\dt.iss must not contain a [Messages] section. Installer messages must come from the selected .isl file."
+}
+
+if (Test-Path -LiteralPath $installerRootDefaultMessagesPath) {
+    Fail "Installer\Default.isl must not exist in the installer root. The compiler runtime Default.isl belongs in Installer\Compiler."
+}
+
+if (-not (Test-Path -LiteralPath $compilerDefaultMessagesPath)) {
+    Fail "Inno Setup compiler runtime Default.isl is missing: $compilerDefaultMessagesPath"
+}
+
+$compilerDefaultText = Get-Content -LiteralPath $compilerDefaultMessagesPath -Raw -Encoding UTF8
+if (-not $compilerDefaultText.Contains("[Messages]")) {
+    Fail "Compiler runtime Default.isl does not contain [Messages]: $compilerDefaultMessagesPath"
+}
+
+if ($compilerDefaultText.Contains("[CustomMessages]")) {
+    Fail "Compiler runtime Default.isl must not contain project CustomMessages. Edit project translations in Installer\Languages instead."
+}
+
+$requiredInstallerFiles = @(
+    "English.isl",
+    "Spanish.isl",
+    "French.isl",
+    "German.isl",
+    "Italian.isl",
+    "Portuguese.isl"
+)
+
+$requiredInstallerSections = @("[LangOptions]", "[Messages]", "[CustomMessages]")
+$requiredInstallerMessageKeys = @(
+    "ButtonNext=",
+    "ButtonBack=",
+    "ButtonCancel=",
+    "ButtonInstall=",
+    "ButtonBrowse=",
+    "WelcomeLabel1=",
+    "SelectDirDesc=",
+    "ReadyLabel1=",
+    "FinishedHeadingLabel="
+)
+
+$customMessageKeys = [regex]::Matches($installerScriptText, "\{cm:([^},]+)") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+
+foreach ($fileName in $requiredInstallerFiles) {
+    $filePath = Join-Path $installerLanguageDir $fileName
+    if (-not (Test-Path -LiteralPath $filePath)) {
+        Fail "Installer language file is missing: $filePath"
+    }
+
+    $text = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+
+    foreach ($section in $requiredInstallerSections) {
+        if (-not $text.Contains($section)) {
+            Fail "Installer language file '$filePath' does not contain required section $section"
+        }
+    }
+
+    foreach ($key in $requiredInstallerMessageKeys) {
+        if (-not $text.Contains($key)) {
+            Fail "Installer language file '$filePath' does not contain required Inno Setup message key $key"
+        }
+    }
+
+    foreach ($key in $customMessageKeys) {
+        if (-not $text.Contains("$key=")) {
+            Fail "Installer language file '$filePath' does not contain required CustomMessages key $key"
+        }
+    }
+
+    Write-Host "Installer language file verified: $filePath"
+}
+
+if (-not (Test-Path -LiteralPath $installerOutputPath)) {
+    Fail "Installer output file was not found after build: $installerOutputPath"
+}
+
+Get-Item -LiteralPath $installerOutputPath | Select-Object FullName, Length, LastWriteTime | Format-List | Out-String | Write-Host
+Write-Host "Installer localization and output verified successfully."

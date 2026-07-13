@@ -1,0 +1,9 @@
+﻿item,status,details
+runtime_log_primary_failure,identified,Installed application reported many missing localization keys and then failed when a missing OpenFileDialog filter became an invalid filter string.
+localization_payload_copy,fixed,DISMTools.vbproj now explicitly copies language/*.ini into TargetDir before installer staging.
+installer_payload_verification,added,tools/build/VerifyInstallerLocalization.ps1 checks bin/Debug and Installer/files localization payloads before release upload.
+missing_key_behavior,strict,LocalizationService.T now throws MissingLocalizationException instead of returning a marker string.
+filter_validation,added,validate_localization.py now rejects invalid dialog filter strings in localization files.
+exception_form_theme_guard,fixed,ExceptionForm no longer dereferences CurrentTheme when the exception happens before theme initialization.
+localization_validation,passed,"5689 source keys, 5689 language keys, no missing keys, no unused keys, no placeholder mismatch."
+deep_ui_audit,passed,Deep UI localization candidates: 0.

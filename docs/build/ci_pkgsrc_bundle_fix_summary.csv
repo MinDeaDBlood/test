@@ -1,0 +1,4 @@
+item,status,details
+primary_archive,kept,tools/build/pkgsrc.bundle
+removed_archive,removed,pkgsrc.zip is not used as a package source
+updatelocalpkg.bat,updated,refreshes tools/build/pkgsrc.bundle
