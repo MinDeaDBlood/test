@@ -92,7 +92,7 @@ Name: "fr"; MessagesFile: ".\Languages\French.isl"
 Name: "de"; MessagesFile: ".\Languages\German.isl"
 Name: "it"; MessagesFile: ".\Languages\Italian.isl"
 Name: "pt"; MessagesFile: ".\Languages\Portuguese.isl"
-Name: "ru"; MessagesFile: ".\Languages\Russian.isl"
+Name: "ru"; MessagesFile: ".\Languages\Russian.isl"; LicenseFile: ".\LICENSE-ru-RU.rtf"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

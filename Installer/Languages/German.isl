@@ -1,4 +1,4 @@
-; ******************************************************
+﻿; ******************************************************
 ; ***                                                ***
 ; *** Inno Setup version 6.5.0+ German messages      ***
 ; ***                                                ***
@@ -47,10 +47,10 @@ LanguageCodePage=1252
 [Messages]
 
 ; *** Application titles
-SetupAppTitle=Setup
-SetupWindowTitle=Setup - %1
-UninstallAppTitle=Entfernen
-UninstallAppFullTitle=%1 entfernen
+SetupAppTitle=Installation
+SetupWindowTitle=Installation: %1
+UninstallAppTitle=Deinstallation
+UninstallAppFullTitle=Deinstallation von %1
 
 ; *** Misc. common
 InformationTitle=Information
@@ -425,7 +425,7 @@ AssocingFileExtension=%1 wird mit der %2-Dateierweiterung registriert...
 AutoStartProgramGroupDescription=Beginn des Setups:
 AutoStartProgram=Starte automatisch %1
 AddonHostProgramNotFound=%1 konnte im ausgewählten Ordner nicht gefunden werden.%n%nMöchten Sie dennoch fortfahren?
-InstallerWord=Installer
+InstallerWord=Installationsprogramm
 UninstallerWord=Deinstallationsprogramm
 AutoReloadTaskDescription=Dienst zum automatischen Neuladen von Images installieren
 ServicesTaskGroup=Dienste
