@@ -1,5 +1,0 @@
-item,status,details
-old_root_pkgsrc_zip,removed,root pkgsrc.zip is no longer used as a package source
-current_package_archive,kept,tools/build/pkgsrc.bundle
-prepare_script,updated,script validates tools/build/pkgsrc.bundle and does not read pkgsrc.zip
-lfs_risk,reduced,bundle path avoids old ZIP LFS confusion

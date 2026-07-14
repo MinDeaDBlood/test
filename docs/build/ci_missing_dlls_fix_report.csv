@@ -1,4 +1,0 @@
-area,file,status,details
-CI,CheckMissingDLLs.ps1,updated,Uses DISMTools.vbproj HintPath values instead of hardcoded NuGet package versions
-CI,tools/build/PrepareNuGetPackages.ps1,updated,Checks project HintPath DLL files after NuGet restore
-CI,docs/build/ci_missing_dlls_fix_ru.md,added,Documents the reason and the new behavior

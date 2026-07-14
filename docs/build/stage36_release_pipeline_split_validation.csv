@@ -1,6 +1,0 @@
-check,result,details
-DISMTools.vbproj post build no longer runs Inno Setup,pass,The GEN_INSTALLER block was removed from the project post build event
-Workflow builds application before installer,pass,release.yml runs MSBuild before BuildInstaller.ps1
-Workflow builds installer through BuildInstaller.ps1,pass,The installer is created by tools/build/BuildInstaller.ps1
-Release publishing uses built installer path,pass,PublishReleaseAsset.ps1 still receives Installer/Output/dt_setup.exe
-Installer language layout unchanged,pass,One installer language is stored in one .isl file under Installer/Languages

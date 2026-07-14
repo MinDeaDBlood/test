@@ -1,9 +1,0 @@
-check,status,details
-workflow_has_build_installer_step,passed,release.yml runs tools\build\BuildInstaller.ps1 before publishing
-build_script_exists,passed,tools\build\BuildInstaller.ps1 exists
-installer_output_checked,passed,BuildInstaller.ps1 verifies Installer\Output\dt_setup.exe
-publish_uses_checked_output,passed,PublishReleaseAsset.ps1 still receives Installer\Output\dt_setup.exe after the explicit build step
-vbproj_fails_without_iscc,passed,DISMTools.vbproj now fails if Installer\ISCC.exe is missing
-vbproj_fails_without_output,passed,DISMTools.vbproj now fails if Installer\Output\dt_setup.exe is missing
-default_isl_not_used,passed,Installer\dt.iss uses Installer\Languages\English.isl directly
-installer_language_files_complete,passed,all installer .isl files contain LangOptions Messages and CustomMessages

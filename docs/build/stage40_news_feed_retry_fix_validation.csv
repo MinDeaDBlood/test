@@ -1,5 +1,0 @@
-check,result
-MainForm.vb does not hardcode News last updated,passed
-MainForm.vb uses several RSS URLs,passed
-MainForm.vb keeps previous feed when refresh fails,passed
-All main language INI files keep equal key counts,passed
