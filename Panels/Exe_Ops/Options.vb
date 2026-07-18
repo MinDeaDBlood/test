@@ -821,7 +821,24 @@ Public Class Options
         If isInitializingForm OrElse isApplyingLocalizedText Then Return
         If ComboBox3.SelectedIndex < 0 Then Return
 
-        MainForm.LanguageCode = GetSelectedLanguageCode(ComboBox3, MainForm.LanguageCode)
+        Dim previousLanguageCode As String = MainForm.LanguageCode
+        Dim selectedLanguageCode As String = GetSelectedLanguageCode(ComboBox3, previousLanguageCode)
+        Dim validationMessage As String = ""
+        If Not LocalizationService.ValidateLanguage(selectedLanguageCode, validationMessage) Then
+            MessageBox.Show(validationMessage,
+                            "Invalid DISMTools language file",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error)
+            isApplyingLocalizedText = True
+            Try
+                PopulateLanguageComboBox(ComboBox3, previousLanguageCode)
+            Finally
+                isApplyingLocalizedText = False
+            End Try
+            Return
+        End If
+
+        MainForm.LanguageCode = selectedLanguageCode
         LocalizationService.SetLanguageByCultureCode(MainForm.LanguageCode)
         ApplyLocalizedText()
         MainForm.ApplyLanguage(MainForm.LanguageCode)

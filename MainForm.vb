@@ -4018,7 +4018,18 @@ Public Class MainForm
     End Sub
 
     Sub ApplyLanguage(cultureCode As String)
-        LanguageCode = LocalizationService.NormalizeCultureCode(cultureCode)
+        Dim requestedCultureCode As String = LocalizationService.NormalizeCultureCode(cultureCode)
+        Dim validationMessage As String = ""
+        If Not LocalizationService.ValidateLanguage(requestedCultureCode, validationMessage) Then
+            DynaLog.LogMessage("The requested language file failed validation. Keeping the default language.")
+            MessageBox.Show(validationMessage,
+                            "Invalid DISMTools language file",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error)
+            requestedCultureCode = LocalizationService.DefaultCultureCode
+        End If
+
+        LanguageCode = requestedCultureCode
         LocalizationService.SetLanguageByCultureCode(LanguageCode)
         DynaLog.LogMessage("Changing program language... (culture code: " & LanguageCode & ")")
         DynaLog.LogMessage("Language culture is " & LanguageCode & ". Applying localization resources...")

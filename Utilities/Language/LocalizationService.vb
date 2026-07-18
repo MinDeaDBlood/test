@@ -5,6 +5,7 @@ Imports System.Diagnostics
 Imports System.Globalization
 Imports System.IO
 Imports System.Text
+Imports System.Text.RegularExpressions
 Imports System.Threading
 Imports System.Windows.Forms
 
@@ -293,6 +294,201 @@ Module LocalizationService
         Next
 
         Return languages
+    End Function
+
+    Public Function ValidateLanguage(cultureCode As String, ByRef userMessage As String) As Boolean
+        EnsureLoaded()
+        userMessage = ""
+
+        Dim requestedCultureCode As String = If(cultureCode, "").Trim().Trim(ChrW(34))
+        If String.IsNullOrWhiteSpace(requestedCultureCode) OrElse Not LanguageFiles.ContainsKey(requestedCultureCode) Then
+            userMessage = "The requested language is not available." & Environment.NewLine & Environment.NewLine &
+                          "Language code: " & If(String.IsNullOrWhiteSpace(requestedCultureCode), "<empty>", requestedCultureCode) & Environment.NewLine &
+                          "Loaded languages: " & LoadedCultureCodes & Environment.NewLine & Environment.NewLine &
+                          "Make sure the file has the .ini extension and contains [LanguageFileInformation] with a unique LanguageCode value."
+            Return False
+        End If
+
+        If requestedCultureCode.Equals(DefaultCultureCode, StringComparison.OrdinalIgnoreCase) Then Return True
+
+        If Not LanguageFiles.ContainsKey(DefaultCultureCode) Then
+            userMessage = "The reference language file could not be loaded." & Environment.NewLine & Environment.NewLine &
+                          "Required language: " & DefaultCultureCode & Environment.NewLine &
+                          "Expected file: language\" & DefaultCultureCode & ".ini" & Environment.NewLine & Environment.NewLine &
+                          "Restore the original reference language file and try again."
+            Return False
+        End If
+
+        Dim languageData As LocalizationLanguageData = LanguageFiles(requestedCultureCode)
+        Dim referenceData As LocalizationLanguageData = LanguageFiles(DefaultCultureCode)
+        Dim errors As New List(Of String)()
+        Dim warnings As New List(Of String)()
+        Dim missingCount As Integer = 0
+        Dim unknownCount As Integer = 0
+
+        AddLanguageSyntaxIssues(languageData.FilePath, errors, warnings)
+
+        For Each referenceSection In referenceData.Sections
+            For Each referenceItem In referenceSection.Value
+                Dim translatedValue As String = FindExactValue(languageData, referenceSection.Key, referenceItem.Key)
+                If translatedValue Is Nothing Then
+                    missingCount += 1
+                    errors.Add("Missing required entry [" & referenceSection.Key & "] " & referenceItem.Key & ".")
+                    Continue For
+                End If
+
+                Dim referencePlaceholders As String = GetFormatPlaceholderSignature(referenceItem.Value)
+                Dim translatedPlaceholders As String = GetFormatPlaceholderSignature(translatedValue)
+                If Not referencePlaceholders.Equals(translatedPlaceholders, StringComparison.Ordinal) Then
+                    errors.Add("Numbered placeholder mismatch in [" & referenceSection.Key & "] " & referenceItem.Key &
+                               ". Expected {" & referencePlaceholders & "}; found {" & translatedPlaceholders & "}.")
+                End If
+
+                Dim unknownControlTokens As String = GetUnknownControlTokens(translatedValue)
+                If unknownControlTokens <> "" Then
+                    errors.Add("Unknown control token(s) in [" & referenceSection.Key & "] " & referenceItem.Key &
+                               ": " & unknownControlTokens & ". Control tokens must not be translated.")
+                End If
+            Next
+        Next
+
+        For Each translatedSection In languageData.Sections
+            For Each translatedItem In translatedSection.Value
+                If FindExactValue(referenceData, translatedSection.Key, translatedItem.Key) Is Nothing Then
+                    unknownCount += 1
+                    warnings.Add("Unknown entry [" & translatedSection.Key & "] " & translatedItem.Key & ". Key and section names must not be translated.")
+                End If
+            Next
+        Next
+
+        If errors.Count = 0 Then Return True
+
+        Dim reportPath As String = WriteLanguageValidationReport(languageData, referenceData, errors, warnings)
+        Dim message As New StringBuilder()
+        message.AppendLine("The language file is invalid and was not applied. DISMTools will keep using the previous language.")
+        message.AppendLine()
+        message.AppendLine("Language: " & requestedCultureCode)
+        message.AppendLine("File: " & languageData.FilePath)
+        message.AppendLine("Reference: " & referenceData.FilePath)
+        message.AppendLine("Errors: " & errors.Count.ToString(CultureInfo.InvariantCulture) &
+                           " (missing required entries: " & missingCount.ToString(CultureInfo.InvariantCulture) & ")")
+        message.AppendLine("Unrecognized entries: " & unknownCount.ToString(CultureInfo.InvariantCulture))
+        message.AppendLine()
+        message.AppendLine("What is wrong:")
+
+        For index As Integer = 0 To Math.Min(errors.Count, 8) - 1
+            message.AppendLine("- " & errors(index))
+        Next
+        If errors.Count > 8 Then message.AppendLine("- ... and " & (errors.Count - 8).ToString(CultureInfo.InvariantCulture) & " more error(s).")
+
+        message.AppendLine()
+        message.AppendLine("How to fix it:")
+        message.AppendLine("Keep every section name and key exactly as written in en-US.ini. Translate only the text after the first '=' character. Do not remove or rename placeholders such as {0} or {1}.")
+        If reportPath <> "" Then
+            message.AppendLine()
+            message.AppendLine("Full validation report: " & reportPath)
+        End If
+
+        userMessage = message.ToString().TrimEnd()
+        Return False
+    End Function
+
+    Private Sub AddLanguageSyntaxIssues(filePath As String, errors As List(Of String), warnings As List(Of String))
+        Dim currentSection As String = ""
+        Dim knownEntries As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        Dim lineNumber As Integer = 0
+
+        For Each rawLine As String In File.ReadAllLines(filePath, Encoding.UTF8)
+            lineNumber += 1
+            Dim trimmedLine As String = rawLine.Trim()
+            If trimmedLine = "" OrElse trimmedLine.StartsWith(";") OrElse trimmedLine.StartsWith("#") Then Continue For
+
+            If trimmedLine.StartsWith("[") AndAlso trimmedLine.EndsWith("]") Then
+                currentSection = trimmedLine.Substring(1, trimmedLine.Length - 2).Trim()
+                If currentSection = "" Then errors.Add("Line " & lineNumber.ToString(CultureInfo.InvariantCulture) & ": empty section name.")
+                Continue For
+            End If
+
+            Dim separatorIndex As Integer = rawLine.IndexOf("="c)
+            If currentSection = "" OrElse separatorIndex <= 0 Then
+                errors.Add("Line " & lineNumber.ToString(CultureInfo.InvariantCulture) & ": malformed entry: " & trimmedLine)
+                Continue For
+            End If
+
+            Dim itemName As String = rawLine.Substring(0, separatorIndex).Trim()
+            Dim entryIdentity As String = currentSection & ChrW(0) & itemName
+            If knownEntries.Contains(entryIdentity) Then
+                warnings.Add("Line " & lineNumber.ToString(CultureInfo.InvariantCulture) & ": duplicate entry [" & currentSection & "] " & itemName & ". The last value will be used.")
+            Else
+                knownEntries.Add(entryIdentity)
+            End If
+        Next
+    End Sub
+
+    Private Function GetFormatPlaceholderSignature(value As String) As String
+        If value Is Nothing Then Return ""
+
+        Dim placeholders As New List(Of String)()
+        For Each placeholder As Match In Regex.Matches(value, "\{(\d+)(?:[^{}]*)?\}")
+            placeholders.Add(placeholder.Groups(1).Value)
+        Next
+        placeholders.Sort(StringComparer.Ordinal)
+        Return String.Join(",", placeholders.ToArray())
+    End Function
+
+    Private Function GetUnknownControlTokens(value As String) As String
+        If value Is Nothing Then Return ""
+
+        Dim unknownTokens As New List(Of String)()
+        For Each tokenMatch As Match In Regex.Matches(value, "\{[^{}\r\n]+\}")
+            Dim token As String = tokenMatch.Value
+            If Regex.IsMatch(token, "^\{\d+(?:,[^}:]+)?(?::[^{}]+)?\}$") Then Continue For
+
+            Select Case token.ToLowerInvariant()
+                Case "{quot;}", "{lbrace;}", "{rbrace;}", "{crlf;}", "{space;}", "{tab;}",
+                     "{count}", "{current}", "{currenttcont}", "{taskcount}"
+                    Continue For
+            End Select
+
+            If Not unknownTokens.Contains(token) Then unknownTokens.Add(token)
+        Next
+
+        unknownTokens.Sort(StringComparer.Ordinal)
+        Return String.Join(", ", unknownTokens.ToArray())
+    End Function
+
+    Private Function WriteLanguageValidationReport(languageData As LocalizationLanguageData,
+                                                     referenceData As LocalizationLanguageData,
+                                                     errors As List(Of String),
+                                                     warnings As List(Of String)) As String
+        Try
+            Dim reportDirectory As String = Path.Combine(Application.StartupPath, "logs", "localization")
+            Directory.CreateDirectory(reportDirectory)
+            Dim reportPath As String = Path.Combine(reportDirectory, "language-validation-" & languageData.CultureCode & ".log")
+            Dim report As New StringBuilder()
+            report.AppendLine("DISMTools language file validation report")
+            report.AppendLine("Generated: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))
+            report.AppendLine("Language: " & languageData.CultureCode)
+            report.AppendLine("File: " & languageData.FilePath)
+            report.AppendLine("Reference: " & referenceData.FilePath)
+            report.AppendLine()
+            report.AppendLine("ERRORS (" & errors.Count.ToString(CultureInfo.InvariantCulture) & ")")
+            For Each validationError As String In errors
+                report.AppendLine("ERROR: " & validationError)
+            Next
+            report.AppendLine()
+            report.AppendLine("UNRECOGNIZED ENTRIES (" & warnings.Count.ToString(CultureInfo.InvariantCulture) & ")")
+            For Each validationWarning As String In warnings
+                report.AppendLine("WARNING: " & validationWarning)
+            Next
+            report.AppendLine()
+            report.AppendLine("Fix: keep section names, key names, and placeholders identical to en-US.ini; translate only values after '='.")
+            File.WriteAllText(reportPath, report.ToString(), Encoding.UTF8)
+            Return reportPath
+        Catch ex As Exception
+            Trace.WriteLine("Could not write language validation report. " & ex.Message)
+            Return ""
+        End Try
     End Function
 
     Private Function TForCulture(cultureCode As String, itemKey As String, args As Object()) As String

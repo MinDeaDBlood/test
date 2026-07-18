@@ -561,7 +561,24 @@ Public Class PrgSetup
         If isApplyingLocalizedText Then Return
         If ComboBox2.SelectedIndex < 0 Then Return
 
-        MainForm.LanguageCode = GetSelectedLanguageCode(ComboBox2, MainForm.LanguageCode)
+        Dim previousLanguageCode As String = MainForm.LanguageCode
+        Dim selectedLanguageCode As String = GetSelectedLanguageCode(ComboBox2, previousLanguageCode)
+        Dim validationMessage As String = ""
+        If Not LocalizationService.ValidateLanguage(selectedLanguageCode, validationMessage) Then
+            MessageBox.Show(validationMessage,
+                            "Invalid DISMTools language file",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error)
+            isApplyingLocalizedText = True
+            Try
+                SelectLanguageComboBox(ComboBox2, previousLanguageCode)
+            Finally
+                isApplyingLocalizedText = False
+            End Try
+            Return
+        End If
+
+        MainForm.LanguageCode = selectedLanguageCode
         LocalizationService.SetLanguageByCultureCode(MainForm.LanguageCode)
         ApplyLocalizedText()
     End Sub
