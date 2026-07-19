@@ -3958,7 +3958,7 @@ Partial Class MainForm
         Me.Label44.Name = "Label44"
         Me.Label44.Size = New System.Drawing.Size(168, 74)
         Me.Label44.TabIndex = 5
-        Me.Label44.Text = LocalizationService.ForSection("Designer.Main")("Mountpoint.Label")
+        Me.Label44.Text = LocalizationService.ForSection("Designer.Main")("MountPoint.Value")
         '
         'Label45
         '

@@ -178,6 +178,13 @@ Module LocalizationService
         Return NormalizeCultureCode(rawValue)
     End Function
 
+    Public Function ResolveStartupCultureCode(settingValue As Object) As String
+        Dim commandLineCultureCode As String = GetCommandLineCultureCode()
+        If Not String.IsNullOrWhiteSpace(commandLineCultureCode) Then Return NormalizeCultureCode(commandLineCultureCode)
+
+        Return ResolveCultureCode(settingValue)
+    End Function
+
     Public Function NormalizeCultureCode(cultureCode As String) As String
         EnsureLoaded()
         If String.IsNullOrWhiteSpace(cultureCode) Then Return DefaultCultureCode

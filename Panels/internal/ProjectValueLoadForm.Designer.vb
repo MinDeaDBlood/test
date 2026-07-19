@@ -270,7 +270,7 @@ Partial Class ProjectValueLoadForm
         Me.Label22.Name = "Label22"
         Me.Label22.Size = New System.Drawing.Size(86, 13)
         Me.Label22.TabIndex = 1
-        Me.Label22.Text = LocalizationService.ForSection("Designer.ProjectValues")("Imagefilecount.Label")
+        Me.Label22.Text = LocalizationService.ForSection("Designer.ProjectValues")("ImageFileCount.Value")
         '
         'Label21
         '
@@ -315,7 +315,7 @@ Partial Class ProjectValueLoadForm
         Me.Label17.Name = "Label17"
         Me.Label17.Size = New System.Drawing.Size(73, 13)
         Me.Label17.TabIndex = 1
-        Me.Label17.Text = LocalizationService.ForSection("Designer.ProjectValues")("Imageedition.Label")
+        Me.Label17.Text = LocalizationService.ForSection("Designer.ProjectValues")("ImageEdition.Value")
         '
         'Label16
         '

@@ -1278,10 +1278,10 @@ Public Class Options
     End Sub
 
     Private Sub Button6_Click(sender As Object, e As EventArgs) Handles Button6.Click
-        If File.Exists(Path.Combine(Application.StartupPath, "tools", "ThemeDesigner", "DT_ThemeDesigner.exe")) Then
-            Process.Start(Path.Combine(Application.StartupPath, "tools", "ThemeDesigner", "DT_ThemeDesigner.exe"),
-                          String.Format("/userdata={0} {1}", ControlChars.Quote & Path.Combine(Application.StartupPath, "userdata", "themes") & ControlChars.Quote, LocalizationService.GetLanguageCommandLineArgument()))
-        End If
+        Dim designerPath As String = Path.Combine(Application.StartupPath, "tools", "ThemeDesigner", "DT_ThemeDesigner.exe")
+        MainForm.TryLaunchExternalTool(designerPath,
+                                       Button6.Text,
+                                       String.Format("/userdata={0} {1}", ControlChars.Quote & Path.Combine(Application.StartupPath, "userdata", "themes") & ControlChars.Quote, LocalizationService.GetLanguageCommandLineArgument()))
     End Sub
 
     Private Sub LinkLabel1_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles LinkLabel1.LinkClicked

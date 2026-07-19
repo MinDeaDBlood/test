@@ -48,7 +48,7 @@ Public Class MainForm
     Public DismExe As String
     Public SaveOnSettingsIni As Boolean
     Public ColorMode As Integer
-    Public LanguageCode As String = LocalizationService.DefaultCultureCode
+    Public LanguageCode As String = LocalizationService.CurrentCultureCode
     Public LogFont As String
     Public LogFile As String
     Public LogLevel As Integer = 3
@@ -261,12 +261,13 @@ Public Class MainForm
                     PrgSetup.ShowDialog()
                 ElseIf arg.StartsWith("/load", StringComparison.OrdinalIgnoreCase) Then
                     DynaLog.LogMessage("Determining if specified project can be loaded...")
-                    If File.Exists(arg.Replace("/load=", "").Trim()) And Directory.Exists(Path.GetDirectoryName(arg.Replace("/load=", "").Trim())) Then
+                    Dim requestedProjectPath As String = arg.Substring(arg.IndexOf("="c) + 1).Trim().Trim(Quote)
+                    If File.Exists(requestedProjectPath) AndAlso Directory.Exists(Path.GetDirectoryName(requestedProjectPath)) Then
                         DynaLog.LogMessage("Specified project satisfies all requirements (projfile exists, dir exists). Passing to load...")
-                        argProjPath = arg.Replace("/load=", "").Trim()
+                        argProjPath = requestedProjectPath
                     Else
-                        DynaLog.LogMessage("Specified project does NOT satisfy all requirements (either projfile or dir doesn't exist). Cannot continue loading project")
-                                MsgBox(LocalizationService.ForSection("Main.GetArguments")("Project.Message"), vbOKOnly + vbCritical, Text)
+                        DynaLog.LogMessage("Specified project does NOT satisfy all requirements (either projfile or dir doesn't exist). Cannot continue loading project. Path: " & Quote & requestedProjectPath & Quote)
+                        MsgBox(LocalizationService.ForSection("Main.GetArguments").Format("Project.Message", requestedProjectPath), vbOKOnly + vbCritical, Text)
                     End If
                 ElseIf arg.StartsWith("/online", StringComparison.OrdinalIgnoreCase) Then
                     DynaLog.LogMessage("Detecting if no projects had been passed by the /load flag...")
@@ -1256,7 +1257,7 @@ Public Class MainForm
                 ColorMode = PersKey.GetValue("ColorMode")
                 DarkThemeIndex = PersKey.GetValue("ColorTheme_Dark")
                 LightThemeIndex = PersKey.GetValue("ColorTheme_Light")
-                LanguageCode = LocalizationService.ResolveCultureCode(PersKey.GetValue("LanguageCode", LocalizationService.DefaultCultureCode))
+                LanguageCode = LocalizationService.ResolveStartupCultureCode(PersKey.GetValue("LanguageCode", LocalizationService.DefaultCultureCode))
                 LogFont = PersKey.GetValue("LogFont").ToString()
                 LogFontSize = CInt(PersKey.GetValue("LogFontSi"))
                 LogFontIsBold = (CInt(PersKey.GetValue("LogFontBold")) = 1)
@@ -1380,7 +1381,7 @@ Public Class MainForm
                         rawLanguageSetting = settingData("Personalization")("LanguageCode")
                     Catch
                     End Try
-                    LanguageCode = LocalizationService.ResolveCultureCode(rawLanguageSetting)
+                    LanguageCode = LocalizationService.ResolveStartupCultureCode(rawLanguageSetting)
                     ApplyLanguage(LanguageCode)
                     LightThemeIndex = CInt(settingData("Personalization")("ColorTheme_Light"))
                     DarkThemeIndex = CInt(settingData("Personalization")("ColorTheme_Dark"))
@@ -3406,7 +3407,7 @@ Public Class MainForm
         End Try
         settingsData("Personalization").AddKey("ColorTheme_Light", 1)
         settingsData("Personalization").AddKey("ColorTheme_Dark", 0)
-        settingsData("Personalization").AddKey("LanguageCode", Quote & LocalizationService.DefaultCultureCode & Quote)
+        settingsData("Personalization").AddKey("LanguageCode", Quote & LocalizationService.CurrentCultureCode & Quote)
         settingsData("Personalization").AddKey("LogFont", Quote & "Consolas" & Quote)
         settingsData("Personalization").AddKey("LogFontSi", 11)
         settingsData("Personalization").AddKey("LogFontBold", 0)
@@ -6756,6 +6757,30 @@ Public Class MainForm
         End If
     End Sub
 
+    Private Sub ReportManagerToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ReportManagerToolStripMenuItem.Click, ManageReportsToolStripMenuItem.Click
+        If Not isProjectLoaded OrElse OnlineManagement OrElse OfflineManagement OrElse String.IsNullOrWhiteSpace(projPath) Then
+            DynaLog.LogMessage("The report manager cannot be opened because no DISMTools project is loaded.")
+            MessageBox.Show(LocalizationService.ForSection("Main.ReportManager")("ProjectRequired.Message"),
+                            LocalizationService.ForSection("Main.ReportManager")("Error.Title"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information)
+            Exit Sub
+        End If
+
+        Dim reportsPath As String = Path.Combine(projPath, "reports")
+        Try
+            If Not Directory.Exists(reportsPath) Then Directory.CreateDirectory(reportsPath)
+            DynaLog.LogMessage("Opening project reports directory: " & Quote & reportsPath & Quote)
+            Process.Start(reportsPath)
+        Catch ex As Exception
+            DynaLog.LogMessage("Could not open the project reports directory. Path: " & Quote & reportsPath & Quote & "; reason: " & ex.Message)
+            MessageBox.Show(LocalizationService.ForSection("Main.ReportManager").Format("OpenFailed.Message", reportsPath, ex.Message),
+                            LocalizationService.ForSection("Main.ReportManager")("Error.Title"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error)
+        End Try
+    End Sub
+
     Private Sub ReportFeedbackToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ReportFeedbackToolStripMenuItem.Click
         DynaLog.LogMessage("Launching page to report feedback...")
         Process.Start("https://github.com/CodingWonders/DISMTools/issues/new/choose")
@@ -9466,10 +9491,10 @@ Public Class MainForm
     End Sub
 
     Private Sub OpenDiagnosticLogsInLogViewerToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OpenDiagnosticLogsInLogViewerToolStripMenuItem.Click
-        If File.Exists(Path.Combine(Application.StartupPath, "tools", "DynaViewer", "DynaViewer.exe")) Then
-            Process.Start(Path.Combine(Application.StartupPath, "tools", "DynaViewer", "DynaViewer.exe"),
-                          Quote & Path.Combine(Application.StartupPath, "logs", "DT_DynaLog.log") & Quote & " " & LocalizationService.GetLanguageCommandLineArgument())
-        End If
+        Dim viewerPath As String = Path.Combine(Application.StartupPath, "tools", "DynaViewer", "DynaViewer.exe")
+        TryLaunchExternalTool(viewerPath,
+                              OpenDiagnosticLogsInLogViewerToolStripMenuItem.Text,
+                              Quote & Path.Combine(Application.StartupPath, "logs", "DT_DynaLog.log") & Quote & " " & LocalizationService.GetLanguageCommandLineArgument())
     End Sub
 
     Private Sub ManageSystemServicesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ManageSystemServicesToolStripMenuItem.Click
@@ -9725,9 +9750,10 @@ Public Class MainForm
     End Sub
 
     Private Sub SSE_TSMI_Click(sender As Object, e As EventArgs) Handles SSE_TSMI.Click
-        Dim SSEPath As String = Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScript.exe")
-        If File.Exists(SSEPath) Then
-            Process.Start(SSEPath, String.Format("/userdata={0} {1}", Quote & Path.Combine(Application.StartupPath, "userdata", "starter_scripts") & Quote, LocalizationService.GetLanguageCommandLineArgument()))
+        Dim SSEPath As String = Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScriptEditor.exe")
+        If TryLaunchExternalTool(SSEPath,
+                                 SSE_TSMI.Text,
+                                 String.Format("/userdata={0} {1}", Quote & Path.Combine(Application.StartupPath, "userdata", "starter_scripts") & Quote, LocalizationService.GetLanguageCommandLineArgument())) Then
             SSETimer.Enabled = True
         End If
     End Sub
@@ -9741,11 +9767,41 @@ Public Class MainForm
 
     Private Sub ThemeDesigner_TSMI_Click(sender As Object, e As EventArgs) Handles ThemeDesigner_TSMI.Click
         Dim TDPath As String = Path.Combine(Application.StartupPath, "tools", "ThemeDesigner", "DT_ThemeDesigner.exe")
-        If File.Exists(TDPath) Then
-            Process.Start(TDPath, String.Format("/userdata={0} {1}", Quote & Path.Combine(Application.StartupPath, "userdata", "themes") & Quote, LocalizationService.GetLanguageCommandLineArgument()))
+        If TryLaunchExternalTool(TDPath,
+                                 ThemeDesigner_TSMI.Text,
+                                 String.Format("/userdata={0} {1}", Quote & Path.Combine(Application.StartupPath, "userdata", "themes") & Quote, LocalizationService.GetLanguageCommandLineArgument())) Then
             ThemeDesignerTimer.Enabled = True
         End If
     End Sub
+
+    Public Function TryLaunchExternalTool(executablePath As String, displayName As String, Optional arguments As String = "") As Boolean
+        Dim resolvedDisplayName As String = If(String.IsNullOrWhiteSpace(displayName), Path.GetFileNameWithoutExtension(executablePath), displayName.Replace("&", "").Trim())
+
+        If Not File.Exists(executablePath) Then
+            DynaLog.LogMessage("Could not start external tool because its executable was not found. Tool: " & resolvedDisplayName & "; path: " & Quote & executablePath & Quote)
+            MessageBox.Show(LocalizationService.ForSection("Main.ExternalTools").Format("NotFound.Message", resolvedDisplayName, executablePath),
+                            LocalizationService.ForSection("Main.ExternalTools")("Error.Title"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error)
+            Return False
+        End If
+
+        Try
+            If String.IsNullOrWhiteSpace(arguments) Then
+                Process.Start(executablePath)
+            Else
+                Process.Start(executablePath, arguments)
+            End If
+            Return True
+        Catch ex As Exception
+            DynaLog.LogMessage("Could not start external tool. Tool: " & resolvedDisplayName & "; path: " & Quote & executablePath & Quote & "; reason: " & ex.Message)
+            MessageBox.Show(LocalizationService.ForSection("Main.ExternalTools").Format("StartFailed.Message", resolvedDisplayName, ex.Message),
+                            LocalizationService.ForSection("Main.ExternalTools")("Error.Title"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error)
+            Return False
+        End Try
+    End Function
 
     Private Sub ThemeDesignerTimer_Tick(sender As Object, e As EventArgs) Handles ThemeDesignerTimer.Tick
         If Not Process.GetProcessesByName("DT_ThemeDesigner").Any() Then

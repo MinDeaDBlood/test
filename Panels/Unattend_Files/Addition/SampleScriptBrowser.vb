@@ -226,9 +226,10 @@ Public Class SampleScriptBrowser
     End Sub
 
     Private Sub CreateStarterScriptBtn_Click(sender As Object, e As EventArgs) Handles CreateStarterScriptBtn.Click
-        If File.Exists(Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScript.exe")) Then
-            Process.Start(Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScript.exe"),
-                          String.Format("/userdata={0} {1}", ControlChars.Quote & Path.Combine(Application.StartupPath, "userdata", "starter_scripts") & ControlChars.Quote, LocalizationService.GetLanguageCommandLineArgument()))
+        Dim editorPath As String = Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScriptEditor.exe")
+        If MainForm.TryLaunchExternalTool(editorPath,
+                                          CreateStarterScriptBtn.Text,
+                                          String.Format("/userdata={0} {1}", ControlChars.Quote & Path.Combine(Application.StartupPath, "userdata", "starter_scripts") & ControlChars.Quote, LocalizationService.GetLanguageCommandLineArgument())) Then
             TableLayoutPanel1.Enabled = False
             WindowHelper.DisableCloseCapability(Handle)
             SSETimer.Enabled = True

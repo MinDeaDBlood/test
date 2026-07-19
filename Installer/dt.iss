@@ -150,8 +150,8 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes
 Root: HKA; Subkey: "Software\Classes\.dtss\OpenWithProgids"; ValueType: string; ValueName: "DTSSEdit.StarterScript"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\Classes\DTSSEdit.StarterScript"; ValueType: string; ValueName: ""; ValueData: "DISMTools Starter Script"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\DTSSEdit.StarterScript\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{#pfDir}\tools\StarterScriptEditor\DTSSIcon.ico"; Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\DTSSEdit.StarterScript\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{#pfDir}\tools\StarterScriptEditor\StarterScript.exe"" /dtss=""%1"""; Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\Applications\StarterScript.exe\SupportedTypes"; ValueType: string; ValueName: ".dtss"; ValueData: ""; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\DTSSEdit.StarterScript\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{#pfDir}\tools\StarterScriptEditor\StarterScriptEditor.exe"" /dtss=""%1"""; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\Applications\StarterScriptEditor.exe\SupportedTypes"; ValueType: string; ValueName: ".dtss"; ValueData: ""; Flags: uninsdeletekey
 
 ; Program registry entries
 Root: HKCU; Subkey: "Software\DISMTools"; ValueType: none; Flags: uninsdeletekey createvalueifdoesntexist

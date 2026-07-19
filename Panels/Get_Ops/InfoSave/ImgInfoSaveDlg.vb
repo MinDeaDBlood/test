@@ -506,7 +506,7 @@ Public Class ImgInfoSaveDlg
                 Debug.WriteLine("[GetFeatureInformation] Getting basic feature information...")
                 ReportChanges(msg(0), 5)
                 InstalledFeatInfo = DismApi.GetFeatures(imgSession)
-                Contents &= GetParagraph(LocalizationService.ForSection("ImageInfoSave.Report")("InfoSummary.Label") & InstalledFeatInfo.Count & LocalizationService.ForSection("ImageInfoSave.Report")("FeatureS.Label"), ParagraphStyle.Bold) & CrLf
+                Contents &= GetParagraph(LocalizationService.ForSection("ImageInfoSave.Report")("InfoSummary.Label") & InstalledFeatInfo.Count & LocalizationService.ForSection("ImageInfoSave.Report")("FeatureCount.Suffix"), ParagraphStyle.Bold) & CrLf
                 msg(0) = LocalizationService.ForSection("ImageInfoSave.Features")("FeaturesObtained.Message")
                 ReportChanges(msg(0), 10)
                 Dim featCustomPropsList As String = "<ul>"
