@@ -4024,7 +4024,7 @@ Public Class MainForm
         If Not LocalizationService.ValidateLanguage(requestedCultureCode, validationMessage) Then
             DynaLog.LogMessage("The requested language file failed validation. Keeping the default language.")
             MessageBox.Show(validationMessage,
-                            "Invalid DISMTools language file",
+                            "Incompatible or invalid DISMTools language file",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error)
             requestedCultureCode = LocalizationService.DefaultCultureCode
