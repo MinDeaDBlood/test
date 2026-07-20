@@ -295,7 +295,7 @@ Public Class Options
             FileAssociationHelper.RemoveFileAssociation(".dtproj", "DISMTools.Project")
         End If
         If DTSSEditAssocCB.Checked Then
-            FileAssociationHelper.SetFileAssociation(".dtss", "DTSSEdit.StarterScript", String.Format("{0}{1}{0} /dtss={0}%1{0}", Quote, Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScript.exe")),
+            FileAssociationHelper.SetFileAssociation(".dtss", "DTSSEdit.StarterScript", String.Format("{0}{1}{0} /dtss={0}%1{0}", Quote, Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScriptEditor.exe")),
                                                      "DISMTools Starter Script", If(DtssUseCustomIcon, Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "DTSSIcon.ico"), ""), Not DtssUseCustomIcon)
         Else
             FileAssociationHelper.RemoveFileAssociation(".dtss", "DTSSEdit.StarterScript")
@@ -826,7 +826,7 @@ Public Class Options
         Dim validationMessage As String = ""
         If Not LocalizationService.ValidateLanguage(selectedLanguageCode, validationMessage) Then
             MessageBox.Show(validationMessage,
-                            "Invalid DISMTools language file",
+                            "Incompatible or invalid DISMTools language file",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error)
             isApplyingLocalizedText = True

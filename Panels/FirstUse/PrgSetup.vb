@@ -566,7 +566,7 @@ Public Class PrgSetup
         Dim validationMessage As String = ""
         If Not LocalizationService.ValidateLanguage(selectedLanguageCode, validationMessage) Then
             MessageBox.Show(validationMessage,
-                            "Invalid DISMTools language file",
+                            "Incompatible or invalid DISMTools language file",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error)
             isApplyingLocalizedText = True

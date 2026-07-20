@@ -372,7 +372,7 @@ Module LocalizationService
 
         Dim reportPath As String = WriteLanguageValidationReport(languageData, referenceData, errors, warnings)
         Dim message As New StringBuilder()
-        message.AppendLine("The language file is invalid and was not applied. DISMTools will keep using the previous language.")
+        message.AppendLine("The language file is incompatible with this DISMTools build or contains invalid entries. It was not applied, and DISMTools will keep using the previous language.")
         message.AppendLine()
         message.AppendLine("Language: " & requestedCultureCode)
         message.AppendLine("File: " & languageData.FilePath)
@@ -390,6 +390,9 @@ Module LocalizationService
 
         message.AppendLine()
         message.AppendLine("How to fix it:")
+        If missingCount > 0 AndAlso unknownCount > 0 Then
+            message.AppendLine("This file probably belongs to a different DISMTools version. Update DISMTools or use the language file included with this build.")
+        End If
         message.AppendLine("Keep every section name and key exactly as written in en-US.ini. Translate only the text after the first '=' character. Do not remove or rename placeholders such as {0} or {1}.")
         If reportPath <> "" Then
             message.AppendLine()

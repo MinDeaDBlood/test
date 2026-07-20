@@ -201,7 +201,8 @@ if ($null -ne $packageArchive) {
 
     Write-Host "$packageArchiveLabel is a valid ZIP archive. Extracting bundled packages."
     New-Item -ItemType Directory -Path $rootPackagesDir -Force | Out-Null
-    Expand-Archive -Path $packageArchive -DestinationPath $rootPackagesDir -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($packageArchive, $rootPackagesDir)
     Write-Host "Bundled packages were extracted to $rootPackagesDir"
 
     Copy-PackageFolder -PackageFolder "ini-parser.2.5.2" -DestinationPackagesDir $hotInstallPackagesDir

@@ -5,6 +5,7 @@ function Fail([string]$Message) {
 }
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$sourceLanguageDir = Join-Path $root "language"
 $buildLanguageDir = Join-Path $root "bin\Debug\language"
 $installerPayloadLanguageDir = Join-Path $root "Installer\files\language"
 $installerLanguageDir = Join-Path $root "Installer\Languages"
@@ -13,13 +14,16 @@ $installerRootDefaultMessagesPath = Join-Path $root "Installer\Default.isl"
 $compilerDefaultMessagesPath = Join-Path $root "Installer\Compiler\Default.isl"
 $installerOutputPath = Join-Path $root "Installer\Output\dt_setup.exe"
 
-$requiredMainFiles = @("en-US.ini", "es-ES.ini", "fr-FR.ini", "pt-PT.ini", "it-IT.ini")
+$requiredMainFiles = @("en-US.ini", "de-DE.ini", "es-ES.ini", "fr-FR.ini", "pt-PT.ini", "it-IT.ini")
 $requiredMainMarkers = @(
     "[Designer.Main]",
     "[Designer.ExceptionForm]",
     "[Main.News]",
     "[Main.News.Load]",
     "[Main.News.Error]",
+    "[Main.ExternalTools]",
+    "[Main.ReportManager]",
+    "[MountedImgMgr]",
     "NewProject.Button=",
     "Retry.Button=",
     "NoDetails.Message="
@@ -46,6 +50,57 @@ foreach ($dir in @($buildLanguageDir, $installerPayloadLanguageDir)) {
     }
 
     Write-Host "Main localization payload verified: $dir"
+}
+
+foreach ($fileName in $requiredMainFiles) {
+    $sourcePath = Join-Path $sourceLanguageDir $fileName
+    $buildPath = Join-Path $buildLanguageDir $fileName
+    $payloadPath = Join-Path $installerPayloadLanguageDir $fileName
+
+    foreach ($path in @($sourcePath, $buildPath, $payloadPath)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            Fail "Localization file is missing: $path"
+        }
+    }
+
+    $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+    $buildHash = (Get-FileHash -LiteralPath $buildPath -Algorithm SHA256).Hash
+    $payloadHash = (Get-FileHash -LiteralPath $payloadPath -Algorithm SHA256).Hash
+    if ($sourceHash -ne $buildHash -or $sourceHash -ne $payloadHash) {
+        Fail "Localization file '$fileName' differs between source, build output, and installer payload."
+    }
+}
+
+$mainExecutableName = "DISMTools.exe"
+$buildExecutablePath = Join-Path (Split-Path $buildLanguageDir -Parent) $mainExecutableName
+$payloadExecutablePath = Join-Path (Split-Path $installerPayloadLanguageDir -Parent) $mainExecutableName
+foreach ($path in @($buildExecutablePath, $payloadExecutablePath)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+        Fail "Main executable is missing: $path"
+    }
+}
+
+$buildExecutableHash = (Get-FileHash -LiteralPath $buildExecutablePath -Algorithm SHA256).Hash
+$payloadExecutableHash = (Get-FileHash -LiteralPath $payloadExecutablePath -Algorithm SHA256).Hash
+if ($buildExecutableHash -ne $payloadExecutableHash) {
+    Fail "DISMTools.exe differs between build output and installer payload."
+}
+
+$mountedManagerSourcePath = Join-Path $root "Panels\Img_Ops\MountedImgMgr.vb"
+$mainFormSourcePath = Join-Path $root "MainForm.vb"
+$optionsSourcePath = Join-Path $root "Panels\Exe_Ops\Options.vb"
+$mountedManagerSource = Get-Content -LiteralPath $mountedManagerSourcePath -Raw -Encoding UTF8
+$mainFormSource = Get-Content -LiteralPath $mainFormSourcePath -Raw -Encoding UTF8
+$optionsSource = Get-Content -LiteralPath $optionsSourcePath -Raw -Encoding UTF8
+
+if ($mountedManagerSource.Contains("ListView1.Columns(5).Text")) {
+    Fail "Mounted Image Manager still accesses the non-existent column at index 5."
+}
+if (-not $mainFormSource.Contains("Handles ReportManagerToolStripMenuItem.Click, ManageReportsToolStripMenuItem.Click")) {
+    Fail "Report Manager click handlers are missing."
+}
+if ($optionsSource.Contains('"StarterScript.exe"')) {
+    Fail "Options still registers the obsolete StarterScript.exe path."
 }
 
 if (-not (Test-Path -LiteralPath $installerScriptPath)) {
