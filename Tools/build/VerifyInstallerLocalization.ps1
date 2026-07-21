@@ -111,6 +111,9 @@ if (-not $mainFormSource.Contains("Handles SaveProjectasToolStripMenuItem.Click"
 if (-not $mainFormSource.Contains("Save Project As menu command received.")) {
     Fail "The Save Project As click handler is not logged."
 }
+if ($mainFormSource -notmatch 'Visible = True\s+BringToFront\(\)\s+Activate\(\)') {
+    Fail "The main window is not activated when it first becomes visible."
+}
 if (-not $newProjectSource.Contains('LocalizationService.ForSection("Main.SaveProjectAs")("Save.Button")')) {
     Fail "The Save Project As dialog does not use its dedicated localized Save button text."
 }

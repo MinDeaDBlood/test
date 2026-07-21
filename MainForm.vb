@@ -721,7 +721,10 @@ Public Class MainForm
             ' Center form
             Location = New Point((Screen.FromControl(Me).WorkingArea.Width - Width) / 2, (Screen.FromControl(Me).WorkingArea.Height - Height) / 2)
         End If
+        DynaLog.LogMessage("Showing and activating the main program window...")
         Visible = True
+        BringToFront()
+        Activate()
         If argProjPath <> "" Then
             DynaLog.LogMessage("A project path has been specified with /load. Loading project...")
             HomePanel.Visible = False
