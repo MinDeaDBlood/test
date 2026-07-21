@@ -23,6 +23,7 @@ $requiredMainMarkers = @(
     "[Main.News.Error]",
     "[Main.ExternalTools]",
     "[Main.ReportManager]",
+    "[Main.SaveProjectAs]",
     "[MountedImgMgr]",
     "NewProject.Button=",
     "Retry.Button=",
@@ -101,6 +102,21 @@ if (-not $mainFormSource.Contains("Handles ReportManagerToolStripMenuItem.Click,
 }
 if (-not $mainFormSource.Contains("Handles LinkLabel14.LinkClicked")) {
     Fail "The project-side image mount link click handler is missing."
+}
+if (-not $mainFormSource.Contains("Handles SaveProjectasToolStripMenuItem.Click")) {
+    Fail "The Save Project As click handler is missing."
+}
+if (-not $mainFormSource.Contains("Handles RefreshViewTSB.Click")) {
+    Fail "The project tree refresh button click handler is missing."
+}
+if (-not $mainFormSource.Contains("SwitchImageIndexesToolStripMenuItem1.Click, SwitchImageIndexesToolStripMenuItem.Click")) {
+    Fail "One or more Switch Image Indexes menu items are not connected."
+}
+if ($optionsSource.Contains('{0}{1}{0} {0}/load={0}%1{0}{0}')) {
+    Fail "Options still registers a malformed .dtproj open command."
+}
+if (-not $optionsSource.Contains('{0}{1}{0} /load={0}%1{0}')) {
+    Fail "Options does not register the expected .dtproj open command."
 }
 if ($optionsSource.Contains('"StarterScript.exe"')) {
     Fail "Options still registers the obsolete StarterScript.exe path."

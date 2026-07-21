@@ -5,6 +5,8 @@ Imports System.Text.RegularExpressions
 
 Public Class NewProj
 
+    Public SaveAsMode As Boolean
+
     Dim IsReqField1Valid As Boolean
     Dim IsReqField2Valid As Boolean
 
@@ -34,6 +36,11 @@ Public Class NewProj
                 Exit Sub
             End If
         End If
+        If SaveAsMode Then
+            Me.DialogResult = System.Windows.Forms.DialogResult.OK
+            Me.Hide()
+            Exit Sub
+        End If
         ProgressPanel.OperationNum = 0
         Me.DialogResult = System.Windows.Forms.DialogResult.OK
         If MainForm.isProjectLoaded Then
@@ -60,14 +67,19 @@ Public Class NewProj
     End Sub
 
     Private Sub NewProj_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Text = LocalizationService.ForSection("NewProj")("Create.Project.Label")
-        ImageTaskHeader1.ItemText = LocalizationService.ForSection("NewProj").Format("Image.Task.Header.Label", Text)
+        If SaveAsMode Then
+            Text = LocalizationService.ForSection("Main.Interface")("SaveProjectas.Button").Replace("&", "").TrimEnd("."c)
+            ImageTaskHeader1.ItemText = Text
+        Else
+            Text = LocalizationService.ForSection("NewProj")("Create.Project.Label")
+            ImageTaskHeader1.ItemText = LocalizationService.ForSection("NewProj").Format("Image.Task.Header.Label", Text)
+        End If
         Label2.Text = LocalizationService.ForSection("NewProj")("Options.Required.Label")
         Label3.Text = LocalizationService.ForSection("NewProj")("Name.Label")
         Label4.Text = LocalizationService.ForSection("NewProj")("Location.Label")
         Label5.Text = LocalizationService.ForSection("NewProj")("Fields.End.Required.Label")
         Button1.Text = LocalizationService.ForSection("NewProj")("Browse.Button")
-        OK_Button.Text = LocalizationService.ForSection("NewProj")("Ok.Button")
+        OK_Button.Text = If(SaveAsMode, Text, LocalizationService.ForSection("NewProj")("Ok.Button"))
         Cancel_Button.Text = LocalizationService.ForSection("NewProj")("Cancel.Button")
         GroupBox1.Text = LocalizationService.ForSection("NewProj")("Project.Group")
         FolderBrowserDialog1.Description = LocalizationService.ForSection("NewProj")("Folder.Store.Description")

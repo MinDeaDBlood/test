@@ -289,7 +289,7 @@ Public Class Options
         DynaLog.LogMessage("- Use a custom icon (DTSS)? " & If(DtssUseCustomIcon, "Yes", "No"))
 
         If DTProjAssocCB.Checked Then
-            FileAssociationHelper.SetFileAssociation(".dtproj", "DISMTools.Project", String.Format("{0}{1}{0} {0}/load={0}%1{0}{0}", Quote, Path.Combine(Application.StartupPath, "DISMTools.exe")),
+            FileAssociationHelper.SetFileAssociation(".dtproj", "DISMTools.Project", String.Format("{0}{1}{0} /load={0}%1{0}", Quote, Path.Combine(Application.StartupPath, "DISMTools.exe")),
                                                      "DISMTools Project", If(DtProjUseCustomIcon, Path.Combine(Application.StartupPath, "resources", "dtproj.ico"), ""), Not DtProjUseCustomIcon)
         Else
             FileAssociationHelper.RemoveFileAssociation(".dtproj", "DISMTools.Project")

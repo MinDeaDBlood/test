@@ -6455,6 +6455,13 @@ Public Class MainForm
         End Try
     End Sub
 
+    Private Sub RefreshViewTSB_Click(sender As Object, e As EventArgs) Handles RefreshViewTSB.Click
+        If Not isProjectLoaded Then Exit Sub
+        DynaLog.LogMessage("Refreshing the project tree...")
+        UnpopulateProjectTree()
+        PopulateProjectTree(prjName)
+    End Sub
+
     Private Sub AddPackage_Click(sender As Object, e As EventArgs) Handles AddPackage.Click
         DynaLog.LogMessage("Opening package addition dialog...")
         AddPackageDlg.ShowDialog(Me)
@@ -6489,6 +6496,106 @@ Public Class MainForm
         DynaLog.LogMessage("Saving project...")
         SaveDTProj()
     End Sub
+
+    Private Sub SaveProjectasToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles SaveProjectasToolStripMenuItem.Click
+        If Not isProjectLoaded OrElse OnlineManagement OrElse OfflineManagement Then Exit Sub
+
+        Dim sourceParent As DirectoryInfo = Directory.GetParent(Path.GetFullPath(projPath))
+        Using saveAsDialog As New NewProj()
+            saveAsDialog.SaveAsMode = True
+            saveAsDialog.TextBox1.Text = prjName & " - Copy"
+            saveAsDialog.TextBox2.Text = If(sourceParent Is Nothing, projPath, sourceParent.FullName)
+            If saveAsDialog.ShowDialog(Me) <> Windows.Forms.DialogResult.OK Then Exit Sub
+
+            SaveProjectAsCopy(saveAsDialog.TextBox1.Text.Trim(), saveAsDialog.TextBox2.Text.Trim())
+        End Using
+    End Sub
+
+    Private Sub SaveProjectAsCopy(newProjectName As String, destinationParent As String)
+        Dim targetRoot As String = destinationParent
+
+        Try
+            Dim sourceRoot = Path.GetFullPath(projPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            Dim destinationRoot = Path.GetFullPath(destinationParent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            targetRoot = Path.GetFullPath(Path.Combine(destinationRoot, newProjectName)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+
+            If targetRoot.Equals(sourceRoot, StringComparison.OrdinalIgnoreCase) OrElse
+               targetRoot.StartsWith(sourceRoot & Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) Then
+                MessageBox.Show(LocalizationService.ForSection("Main.SaveProjectAs")("InvalidDestination.Message"), LocalizationService.ForSection("Main.SaveProjectAs")("Error.Title"), MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
+                Exit Sub
+            End If
+            If Directory.Exists(targetRoot) AndAlso Directory.GetFileSystemEntries(targetRoot).Length > 0 Then
+                MessageBox.Show(LocalizationService.ForSection("Main.SaveProjectAs").Format("DestinationExists.Message", targetRoot), LocalizationService.ForSection("Main.SaveProjectAs")("Error.Title"), MessageBoxButtons.OK, MessageBoxIcon.Exclamation)
+                Exit Sub
+            End If
+
+            SaveDTProj()
+            CopyProjectDirectory(sourceRoot, targetRoot, sourceRoot)
+
+            Dim targetSettingsPath = Path.Combine(targetRoot, "settings", "project.ini")
+            Dim settingsLines = File.ReadAllLines(targetSettingsPath, ASCII)
+            For lineIndex = 0 To settingsLines.Length - 1
+                If settingsLines(lineIndex).StartsWith("Name=", StringComparison.OrdinalIgnoreCase) Then
+                    settingsLines(lineIndex) = "Name=" & Quote & newProjectName & Quote
+                ElseIf settingsLines(lineIndex).StartsWith("Location=", StringComparison.OrdinalIgnoreCase) Then
+                    settingsLines(lineIndex) = "Location=" & destinationRoot
+                End If
+            Next
+            File.WriteAllLines(targetSettingsPath, settingsLines, ASCII)
+
+            Dim targetProjectFile = Path.Combine(targetRoot, newProjectName & ".dtproj")
+            File.WriteAllText(targetProjectFile,
+                              "# DISMTools project file. File version: 0.1" & CrLf &
+                              "[Settings]" & CrLf &
+                              "SettingsInclude=\settings\project.ini" & CrLf & CrLf &
+                              "[Project]" & CrLf &
+                              "ProjName=" & newProjectName & CrLf &
+                              "ProjGuid=" & Guid.NewGuid().ToString(), ASCII)
+
+            Dim previousCommitOperation = imgCommitOperation
+            Try
+                imgCommitOperation = -1
+                UnloadDTProj(False, False)
+            Finally
+                imgCommitOperation = previousCommitOperation
+            End Try
+
+            ProgressPanel.OperationNum = 990
+            LoadDTProj(targetProjectFile, newProjectName, True, False)
+            If Not isProjectLoaded OrElse
+               Not Path.GetFullPath(projPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Equals(targetRoot, StringComparison.OrdinalIgnoreCase) Then
+                Throw New InvalidOperationException(LocalizationService.ForSection("Main.SaveProjectAs").Format("OpenCopyFailed.Message", targetProjectFile))
+            End If
+        Catch ex As Exception
+            DynaLog.LogMessage("Could not save the project as a copy. Error message: " & ex.Message)
+            MessageBox.Show(LocalizationService.ForSection("Main.SaveProjectAs").Format("Error.Message", targetRoot, ex.Message), LocalizationService.ForSection("Main.SaveProjectAs")("Error.Title"), MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    Private Sub CopyProjectDirectory(sourceDirectory As String, targetDirectory As String, sourceRoot As String)
+        Directory.CreateDirectory(targetDirectory)
+
+        For Each sourceFile In Directory.GetFiles(sourceDirectory)
+            If sourceDirectory.Equals(sourceRoot, StringComparison.OrdinalIgnoreCase) AndAlso
+               Path.GetExtension(sourceFile).Equals(".dtproj", StringComparison.OrdinalIgnoreCase) Then Continue For
+            File.Copy(sourceFile, Path.Combine(targetDirectory, Path.GetFileName(sourceFile)), True)
+        Next
+
+        For Each sourceChildDirectory In Directory.GetDirectories(sourceDirectory)
+            Dim relativePath = sourceChildDirectory.Substring(sourceRoot.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            Dim targetChildDirectory = Path.Combine(targetDirectory, Path.GetFileName(sourceChildDirectory))
+            Directory.CreateDirectory(targetChildDirectory)
+            If IsTemporaryProjectPath(relativePath) Then Continue For
+            CopyProjectDirectory(sourceChildDirectory, targetChildDirectory, sourceRoot)
+        Next
+    End Sub
+
+    Private Function IsTemporaryProjectPath(relativePath As String) As Boolean
+        Dim pathParts = relativePath.Split({Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar}, StringSplitOptions.RemoveEmptyEntries)
+        If pathParts.Length = 0 Then Return False
+        Return pathParts(0).Equals("mount", StringComparison.OrdinalIgnoreCase) OrElse
+               pathParts(0).Equals("scr_temp", StringComparison.OrdinalIgnoreCase)
+    End Function
 
     Private Sub ImgBW_DoWork(sender As Object, e As System.ComponentModel.DoWorkEventArgs) Handles ImgBW.DoWork
         DynaLog.LogMessage("Preparing background processes...")
@@ -7459,7 +7566,7 @@ Public Class MainForm
         ImgIndexDelete.ShowDialog(Me)
     End Sub
 
-    Private Sub SwitchImageIndexesToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles SwitchImageIndexesToolStripMenuItem1.Click
+    Private Sub SwitchImageIndexesToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles SwitchImageIndexesToolStripMenuItem1.Click, SwitchImageIndexesToolStripMenuItem.Click
         ImgIndexSwitch.ShowDialog(Me)
     End Sub
 
