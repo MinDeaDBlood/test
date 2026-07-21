@@ -79,7 +79,7 @@ Public Class NewProj
         Label4.Text = LocalizationService.ForSection("NewProj")("Location.Label")
         Label5.Text = LocalizationService.ForSection("NewProj")("Fields.End.Required.Label")
         Button1.Text = LocalizationService.ForSection("NewProj")("Browse.Button")
-        OK_Button.Text = If(SaveAsMode, Text, LocalizationService.ForSection("NewProj")("Ok.Button"))
+        OK_Button.Text = If(SaveAsMode, LocalizationService.ForSection("Main.SaveProjectAs")("Save.Button"), LocalizationService.ForSection("NewProj")("Ok.Button"))
         Cancel_Button.Text = LocalizationService.ForSection("NewProj")("Cancel.Button")
         GroupBox1.Text = LocalizationService.ForSection("NewProj")("Project.Group")
         FolderBrowserDialog1.Description = LocalizationService.ForSection("NewProj")("Folder.Store.Description")

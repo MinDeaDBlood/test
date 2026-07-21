@@ -89,9 +89,11 @@ if ($buildExecutableHash -ne $payloadExecutableHash) {
 
 $mountedManagerSourcePath = Join-Path $root "Panels\Img_Ops\MountedImgMgr.vb"
 $mainFormSourcePath = Join-Path $root "MainForm.vb"
+$newProjectSourcePath = Join-Path $root "Panels\Prj_Ops\NewProj.vb"
 $optionsSourcePath = Join-Path $root "Panels\Exe_Ops\Options.vb"
 $mountedManagerSource = Get-Content -LiteralPath $mountedManagerSourcePath -Raw -Encoding UTF8
 $mainFormSource = Get-Content -LiteralPath $mainFormSourcePath -Raw -Encoding UTF8
+$newProjectSource = Get-Content -LiteralPath $newProjectSourcePath -Raw -Encoding UTF8
 $optionsSource = Get-Content -LiteralPath $optionsSourcePath -Raw -Encoding UTF8
 
 if ($mountedManagerSource.Contains("ListView1.Columns(5).Text")) {
@@ -105,6 +107,12 @@ if (-not $mainFormSource.Contains("Handles LinkLabel14.LinkClicked")) {
 }
 if (-not $mainFormSource.Contains("Handles SaveProjectasToolStripMenuItem.Click")) {
     Fail "The Save Project As click handler is missing."
+}
+if (-not $mainFormSource.Contains("Save Project As menu command received.")) {
+    Fail "The Save Project As click handler is not logged."
+}
+if (-not $newProjectSource.Contains('LocalizationService.ForSection("Main.SaveProjectAs")("Save.Button")')) {
+    Fail "The Save Project As dialog does not use its dedicated localized Save button text."
 }
 if (-not $mainFormSource.Contains("Handles RefreshViewTSB.Click")) {
     Fail "The project tree refresh button click handler is missing."

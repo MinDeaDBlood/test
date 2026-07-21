@@ -6498,15 +6498,31 @@ Public Class MainForm
     End Sub
 
     Private Sub SaveProjectasToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles SaveProjectasToolStripMenuItem.Click
-        If Not isProjectLoaded OrElse OnlineManagement OrElse OfflineManagement Then Exit Sub
+        DynaLog.LogMessage("Save Project As menu command received." & CrLf &
+                           "- Is a project loaded? " & If(isProjectLoaded, "Yes", "No") & CrLf &
+                           "- Online management mode? " & If(OnlineManagement, "Yes", "No") & CrLf &
+                           "- Offline management mode? " & If(OfflineManagement, "Yes", "No") & CrLf &
+                           "- Project path: " & Quote & projPath & Quote)
+        If Not isProjectLoaded OrElse OnlineManagement OrElse OfflineManagement Then
+            DynaLog.LogMessage("Save Project As cannot continue because no regular DISMTools project is loaded.")
+            MessageBox.Show(LocalizationService.ForSection("Main.SaveProjectAs")("Unavailable.Message"),
+                            LocalizationService.ForSection("Main.SaveProjectAs")("Error.Title"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information)
+            Exit Sub
+        End If
 
         Dim sourceParent As DirectoryInfo = Directory.GetParent(Path.GetFullPath(projPath))
         Using saveAsDialog As New NewProj()
             saveAsDialog.SaveAsMode = True
             saveAsDialog.TextBox1.Text = prjName & " - Copy"
             saveAsDialog.TextBox2.Text = If(sourceParent Is Nothing, projPath, sourceParent.FullName)
-            If saveAsDialog.ShowDialog(Me) <> Windows.Forms.DialogResult.OK Then Exit Sub
+            DynaLog.LogMessage("Opening the Save Project As dialog...")
+            Dim saveAsResult = saveAsDialog.ShowDialog(Me)
+            DynaLog.LogMessage("The Save Project As dialog returned: " & saveAsResult.ToString())
+            If saveAsResult <> Windows.Forms.DialogResult.OK Then Exit Sub
 
+            DynaLog.LogMessage("The user confirmed Save Project As. Beginning the copy operation...")
             SaveProjectAsCopy(saveAsDialog.TextBox1.Text.Trim(), saveAsDialog.TextBox2.Text.Trim())
         End Using
     End Sub
@@ -6518,6 +6534,9 @@ Public Class MainForm
             Dim sourceRoot = Path.GetFullPath(projPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             Dim destinationRoot = Path.GetFullPath(destinationParent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             targetRoot = Path.GetFullPath(Path.Combine(destinationRoot, newProjectName)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            DynaLog.LogMessage("Preparing to save the project as a copy." & CrLf &
+                               "- Source: " & Quote & sourceRoot & Quote & CrLf &
+                               "- Destination: " & Quote & targetRoot & Quote)
 
             If targetRoot.Equals(sourceRoot, StringComparison.OrdinalIgnoreCase) OrElse
                targetRoot.StartsWith(sourceRoot & Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) Then
@@ -6566,6 +6585,7 @@ Public Class MainForm
                Not Path.GetFullPath(projPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Equals(targetRoot, StringComparison.OrdinalIgnoreCase) Then
                 Throw New InvalidOperationException(LocalizationService.ForSection("Main.SaveProjectAs").Format("OpenCopyFailed.Message", targetProjectFile))
             End If
+            DynaLog.LogMessage("Save Project As completed successfully. The copied project is loaded.")
         Catch ex As Exception
             DynaLog.LogMessage("Could not save the project as a copy. Error message: " & ex.Message)
             MessageBox.Show(LocalizationService.ForSection("Main.SaveProjectAs").Format("Error.Message", targetRoot, ex.Message), LocalizationService.ForSection("Main.SaveProjectAs")("Error.Title"), MessageBoxButtons.OK, MessageBoxIcon.Error)
