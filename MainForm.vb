@@ -583,6 +583,28 @@ Public Class MainForm
         DynaLog.LogMessage("-------- Powered by CONTEMPOR/\NE\/S Wave 1 PREVIEW 2 --------")
     End Sub
 
+    Private Sub MainForm_Shown(sender As Object, e As EventArgs) Handles MyBase.Shown
+        ' The Load handler performs asynchronous startup work. Request foreground activation only
+        ' after WinForms has actually displayed the main window for the first time.
+        BeginInvoke(New MethodInvoker(AddressOf ActivateMainWindowAfterShown))
+    End Sub
+
+    Private Sub ActivateMainWindowAfterShown()
+        If IsDisposed OrElse Not Visible Then Exit Sub
+
+        DynaLog.LogMessage("The main program window has been shown. Requesting foreground activation...")
+        BringToFront()
+        Dim normalZOrderRestored As Boolean = False
+        Dim raisedAboveOtherWindows As Boolean = WindowHelper.RaiseWindowAndRestoreNormalZOrder(Handle, normalZOrderRestored)
+        Dim foregroundRequested As Boolean = WindowHelper.RequestForegroundWindow(Handle)
+        Activate()
+        DynaLog.LogMessage("One-time window raise succeeded: " & raisedAboveOtherWindows &
+                           "; normal z-order restored: " & normalZOrderRestored &
+                           "; foreground activation request succeeded: " & foregroundRequested &
+                           "; main window is foreground: " & WindowHelper.IsForegroundWindow(Handle) &
+                           "; main window remains topmost: " & WindowHelper.IsTopMostWindow(Handle))
+    End Sub
+
     Private Async Sub MainForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         InitDynaLog()
 
@@ -721,10 +743,8 @@ Public Class MainForm
             ' Center form
             Location = New Point((Screen.FromControl(Me).WorkingArea.Width - Width) / 2, (Screen.FromControl(Me).WorkingArea.Height - Height) / 2)
         End If
-        DynaLog.LogMessage("Showing and activating the main program window...")
+        DynaLog.LogMessage("Showing the main program window...")
         Visible = True
-        BringToFront()
-        Activate()
         If argProjPath <> "" Then
             DynaLog.LogMessage("A project path has been specified with /load. Loading project...")
             HomePanel.Visible = False

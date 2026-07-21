@@ -89,10 +89,12 @@ if ($buildExecutableHash -ne $payloadExecutableHash) {
 
 $mountedManagerSourcePath = Join-Path $root "Panels\Img_Ops\MountedImgMgr.vb"
 $mainFormSourcePath = Join-Path $root "MainForm.vb"
+$windowHelperSourcePath = Join-Path $root "Utilities\WindowHelper.vb"
 $newProjectSourcePath = Join-Path $root "Panels\Prj_Ops\NewProj.vb"
 $optionsSourcePath = Join-Path $root "Panels\Exe_Ops\Options.vb"
 $mountedManagerSource = Get-Content -LiteralPath $mountedManagerSourcePath -Raw -Encoding UTF8
 $mainFormSource = Get-Content -LiteralPath $mainFormSourcePath -Raw -Encoding UTF8
+$windowHelperSource = Get-Content -LiteralPath $windowHelperSourcePath -Raw -Encoding UTF8
 $newProjectSource = Get-Content -LiteralPath $newProjectSourcePath -Raw -Encoding UTF8
 $optionsSource = Get-Content -LiteralPath $optionsSourcePath -Raw -Encoding UTF8
 
@@ -111,8 +113,27 @@ if (-not $mainFormSource.Contains("Handles SaveProjectasToolStripMenuItem.Click"
 if (-not $mainFormSource.Contains("Save Project As menu command received.")) {
     Fail "The Save Project As click handler is not logged."
 }
-if ($mainFormSource -notmatch 'Visible = True\s+BringToFront\(\)\s+Activate\(\)') {
-    Fail "The main window is not activated when it first becomes visible."
+if (-not $mainFormSource.Contains("Handles MyBase.Shown")) {
+    Fail "The main window does not request foreground activation from its Shown event."
+}
+if (-not $mainFormSource.Contains("WindowHelper.RequestForegroundWindow(Handle)")) {
+    Fail "The main window does not request Win32 foreground activation after it is shown."
+}
+if (-not $mainFormSource.Contains("WindowHelper.RaiseWindowAndRestoreNormalZOrder(Handle, normalZOrderRestored)")) {
+    Fail "The main window does not include a one-time foreground fallback."
+}
+if (-not $mainFormSource.Contains("main window is foreground:") -or
+    -not $mainFormSource.Contains("main window remains topmost:")) {
+    Fail "The foreground activation result is not fully logged."
+}
+if (-not $windowHelperSource.Contains("SetForegroundWindow") -or
+    -not $windowHelperSource.Contains("GetForegroundWindow") -or
+    -not $windowHelperSource.Contains("SetWindowPos") -or
+    -not $windowHelperSource.Contains("HWND_NOTOPMOST")) {
+    Fail "The foreground-window Win32 helper is missing."
+}
+if ($mainFormSource -match 'TopMost\s*=\s*True') {
+    Fail "The main window must not be made permanently topmost."
 }
 if (-not $newProjectSource.Contains('LocalizationService.ForSection("Main.SaveProjectAs")("Save.Button")')) {
     Fail "The Save Project As dialog does not use its dedicated localized Save button text."
