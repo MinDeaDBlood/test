@@ -99,6 +99,9 @@ if ($mountedManagerSource.Contains("ListView1.Columns(5).Text")) {
 if (-not $mainFormSource.Contains("Handles ReportManagerToolStripMenuItem.Click, ManageReportsToolStripMenuItem.Click")) {
     Fail "Report Manager click handlers are missing."
 }
+if (-not $mainFormSource.Contains("Handles LinkLabel14.LinkClicked")) {
+    Fail "The project-side image mount link click handler is missing."
+}
 if ($optionsSource.Contains('"StarterScript.exe"')) {
     Fail "Options still registers the obsolete StarterScript.exe path."
 }

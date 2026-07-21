@@ -7808,6 +7808,10 @@ Public Class MainForm
 
 #Region "Task Links"
 
+    Private Sub LinkLabel14_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles LinkLabel14.LinkClicked
+        Button26.PerformClick()
+    End Sub
+
     Private Sub LinkLabel15_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles LinkLabel15.LinkClicked
                 ProjProperties.ImageTaskHeader1.ItemText = LocalizationService.ForSection("Main.Links")("Props.Label")
         If Environment.OSVersion.Version.Major = 10 Then
