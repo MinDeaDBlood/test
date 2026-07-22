@@ -17,6 +17,7 @@ Public Class Options
 
     Private isInitializingForm As Boolean = True
     Private isApplyingLocalizedText As Boolean = False
+    Private isLoadingFileAssociationState As Boolean = False
     Private originalLanguage As String = LocalizationService.DefaultCultureCode
 
     Public Sub New()
@@ -260,15 +261,21 @@ Public Class Options
                 Return False
             End If
 
-            ' Separate each part of the command-line to get the application path
-            Dim CmdlineParts As String() = AssocCmd.Replace(Quote, "").Split(" ")
-            Dim AssocCmdPath As String = ""
-            For i = 0 To CmdlineParts.Length - 1
-                AssocCmdPath &= " " & CmdlineParts(i)
-                If File.Exists(AssocCmdPath) Then Exit For
-            Next
-            AssocCmd = AssocCmdPath
-            Return File.Exists(AssocCmd)
+            Dim trimmedCommand As String = AssocCmd.Trim()
+            Dim executablePath As String = ""
+            Dim quoteCharacter As Char = ChrW(34)
+            If trimmedCommand.Length > 0 AndAlso trimmedCommand(0) = quoteCharacter Then
+                Dim closingQuoteIndex As Integer = trimmedCommand.IndexOf(quoteCharacter, 1)
+                If closingQuoteIndex > 1 Then executablePath = trimmedCommand.Substring(1, closingQuoteIndex - 1)
+            Else
+                Dim firstSpaceIndex As Integer = trimmedCommand.IndexOf(" "c)
+                executablePath = If(firstSpaceIndex >= 0, trimmedCommand.Substring(0, firstSpaceIndex), trimmedCommand)
+            End If
+
+            DynaLog.LogMessage("Executable path registered for association: " & Quote & executablePath & Quote)
+            Dim associationExecutableExists As Boolean = File.Exists(executablePath)
+            DynaLog.LogMessage("Does the registered association executable exist? " & associationExecutableExists)
+            Return associationExecutableExists
         Catch ex As Exception
             DynaLog.LogMessage("Could not detect file associations. Error message: " & ex.Message)
             Return False
@@ -288,12 +295,14 @@ Public Class Options
         DynaLog.LogMessage("- Use a custom icon (DTPROJ)? " & If(DtProjUseCustomIcon, "Yes", "No"))
         DynaLog.LogMessage("- Use a custom icon (DTSS)? " & If(DtssUseCustomIcon, "Yes", "No"))
 
+        Dim dtProjAssociationSucceeded As Boolean
         If DTProjAssocCB.Checked Then
-            FileAssociationHelper.SetFileAssociation(".dtproj", "DISMTools.Project", String.Format("{0}{1}{0} /load={0}%1{0}", Quote, Path.Combine(Application.StartupPath, "DISMTools.exe")),
-                                                     "DISMTools Project", If(DtProjUseCustomIcon, Path.Combine(Application.StartupPath, "resources", "dtproj.ico"), ""), Not DtProjUseCustomIcon)
+            dtProjAssociationSucceeded = FileAssociationHelper.SetFileAssociation(".dtproj", "DISMTools.Project", String.Format("{0}{1}{0} /load={0}%1{0}", Quote, Path.Combine(Application.StartupPath, "DISMTools.exe")),
+                                                                                  "DISMTools Project", If(DtProjUseCustomIcon, Path.Combine(Application.StartupPath, "resources", "dtproj.ico"), ""), Not DtProjUseCustomIcon)
         Else
-            FileAssociationHelper.RemoveFileAssociation(".dtproj", "DISMTools.Project")
+            dtProjAssociationSucceeded = FileAssociationHelper.RemoveFileAssociation(".dtproj", "DISMTools.Project")
         End If
+        DynaLog.LogMessage("DISMTools project association update succeeded: " & dtProjAssociationSucceeded)
         If DTSSEditAssocCB.Checked Then
             FileAssociationHelper.SetFileAssociation(".dtss", "DTSSEdit.StarterScript", String.Format("{0}{1}{0} /dtss={0}%1{0}", Quote, Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "StarterScriptEditor.exe")),
                                                      "DISMTools Starter Script", If(DtssUseCustomIcon, Path.Combine(Application.StartupPath, "tools", "StarterScriptEditor", "DTSSIcon.ico"), ""), Not DtssUseCustomIcon)
@@ -303,10 +312,24 @@ Public Class Options
 
         DynaLog.LogMessage("Checking file associations one more time...")
 
-        DTProjAssocCB.Checked = DetectFileAssociations("DISMTools.Project")
-        CheckBox11.Checked = FileAssociationHelper.GetFileAssociationIconPath("DISMTools.Project") <> ""
-        DTSSEditAssocCB.Checked = DetectFileAssociations("DTSSEdit.StarterScript")
-        CheckBox24.Checked = FileAssociationHelper.GetFileAssociationIconPath("DTSSEdit.StarterScript") <> ""
+        LoadFileAssociationState()
+    End Sub
+
+    Private Sub LoadFileAssociationState()
+        isLoadingFileAssociationState = True
+        Try
+            Dim dtProjAssociationExists As Boolean = DetectFileAssociations("DISMTools.Project")
+            DTProjAssocCB.Checked = dtProjAssociationExists
+            CheckBox11.Checked = dtProjAssociationExists AndAlso
+                                 Not String.IsNullOrWhiteSpace(FileAssociationHelper.GetFileAssociationIconPath("DISMTools.Project"))
+            CheckBox11.Enabled = dtProjAssociationExists
+
+            DTSSEditAssocCB.Checked = DetectFileAssociations("DTSSEdit.StarterScript")
+            CheckBox24.Checked = DTSSEditAssocCB.Checked AndAlso
+                                 Not String.IsNullOrWhiteSpace(FileAssociationHelper.GetFileAssociationIconPath("DTSSEdit.StarterScript"))
+        Finally
+            isLoadingFileAssociationState = False
+        End Try
     End Sub
 
     Private Sub OK_Button_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OK_Button.Click
@@ -694,8 +717,7 @@ Public Class Options
             SplitContainer1.SplitterDistance = WindowHelper.ScaleLogical(SplitContainer1.SplitterDistance)
         End If
 
-        DTProjAssocCB.Checked = DetectFileAssociations("DISMTools.Project")
-        DTSSEditAssocCB.Checked = DetectFileAssociations("DTSSEdit.StarterScript")
+        LoadFileAssociationState()
         GetAIRServiceInformation()
         ImageTaskHeader1.HideWindowTitle(handle)
     End Sub
@@ -1381,5 +1403,10 @@ Public Class Options
 
     Private Sub DTProjAssocCB_CheckedChanged(sender As Object, e As EventArgs) Handles DTProjAssocCB.CheckedChanged
         CheckBox11.Enabled = DTProjAssocCB.Checked
+        If isLoadingFileAssociationState Then Exit Sub
+
+        ' A newly enabled project association should use the bundled project icon by default.
+        ' The user can still clear the icon check box before applying the association.
+        CheckBox11.Checked = DTProjAssocCB.Checked
     End Sub
 End Class

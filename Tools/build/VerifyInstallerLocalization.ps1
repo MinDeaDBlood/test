@@ -90,11 +90,13 @@ if ($buildExecutableHash -ne $payloadExecutableHash) {
 $mountedManagerSourcePath = Join-Path $root "Panels\Img_Ops\MountedImgMgr.vb"
 $mainFormSourcePath = Join-Path $root "MainForm.vb"
 $windowHelperSourcePath = Join-Path $root "Utilities\WindowHelper.vb"
+$fileAssociationHelperSourcePath = Join-Path $root "Utilities\FileAssociations\FileAssociationHelper.vb"
 $newProjectSourcePath = Join-Path $root "Panels\Prj_Ops\NewProj.vb"
 $optionsSourcePath = Join-Path $root "Panels\Exe_Ops\Options.vb"
 $mountedManagerSource = Get-Content -LiteralPath $mountedManagerSourcePath -Raw -Encoding UTF8
 $mainFormSource = Get-Content -LiteralPath $mainFormSourcePath -Raw -Encoding UTF8
 $windowHelperSource = Get-Content -LiteralPath $windowHelperSourcePath -Raw -Encoding UTF8
+$fileAssociationHelperSource = Get-Content -LiteralPath $fileAssociationHelperSourcePath -Raw -Encoding UTF8
 $newProjectSource = Get-Content -LiteralPath $newProjectSourcePath -Raw -Encoding UTF8
 $optionsSource = Get-Content -LiteralPath $optionsSourcePath -Raw -Encoding UTF8
 
@@ -152,6 +154,24 @@ if (-not $optionsSource.Contains('{0}{1}{0} /load={0}%1{0}')) {
 }
 if ($optionsSource.Contains('"StarterScript.exe"')) {
     Fail "Options still registers the obsolete StarterScript.exe path."
+}
+if (-not $optionsSource.Contains("LoadFileAssociationState()")) {
+    Fail "Options does not restore the current file association and icon state."
+}
+if (-not $optionsSource.Contains("CheckBox11.Checked = DTProjAssocCB.Checked")) {
+    Fail "Enabling the project association does not enable its icon by default."
+}
+if (-not $optionsSource.Contains("Executable path registered for association:")) {
+    Fail "Options does not validate the executable path parsed from an association command."
+}
+if (-not $fileAssociationHelperSource.Contains("Registry.CurrentUser.CreateSubKey(UserClassesRegistryPath)")) {
+    Fail "Portable file associations are not registered per user."
+}
+if (-not $fileAssociationHelperSource.Contains('CreateSubKey("DefaultIcon")')) {
+    Fail "The project icon registry key is not created when required."
+}
+if ($fileAssociationHelperSource.Contains('OpenSubKey("DefaultIcon", True)')) {
+    Fail "The file association helper still assumes that the icon registry key already exists."
 }
 
 if (-not (Test-Path -LiteralPath $installerScriptPath)) {
