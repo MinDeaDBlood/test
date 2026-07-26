@@ -27,14 +27,13 @@ jobs:
         shell: pwsh
         run: .\nugetpkgprep.bat
 
-      - name: Build with the upstream command
+      - name: Build localization test
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path ".\artifacts" -Force | Out-Null
           $ghAction = "yes"
           $solutionDir = "$((Get-Location).Path)\"
           $projectDir = "$((Get-Location).Path)\"
-          $targetDir = (Get-Location).Path + "\bin\Debug\"
           iex "$($solutionDir)CheckMissingDlls.ps1"
           $logPath = Join-Path (Get-Location).Path "artifacts\msbuild.log"
           msbuild DISMTools.vbproj `
@@ -42,7 +41,6 @@ jobs:
             /p:DeployOnBuild=true `
             /p:SolutionDir=$solutionDir `
             /p:ProjectDir=$projectDir `
-            /p:TargetDir=$targetDir `
             /bl:artifacts\build.binlog `
             "/flp:logfile=$logPath;verbosity=diagnostic"
           if ($LASTEXITCODE -ne 0) {
