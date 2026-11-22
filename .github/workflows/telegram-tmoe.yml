@@ -54,14 +54,18 @@ jobs:
       - name: Clone Telegram 13.2.2 and TMoe
         shell: bash
         run: |
-          git clone https://github.com/TelegramMessenger/Telegram-Android.git telegram
+          git init telegram
           cd telegram
-          git checkout 21f7d109da6ab3506c9e9577f98c6a38771ab335
+          git remote add origin https://github.com/TelegramMessenger/Telegram-Android.git
+          git fetch --depth=1 origin 21f7d109da6ab3506c9e9577f98c6a38771ab335
+          git checkout --detach FETCH_HEAD
           git submodule update --init --recursive --depth=1
           cd ..
-          git clone https://github.com/cinit/TMoe.git tmoe
+          git init tmoe
           cd tmoe
-          git checkout 25043bcd95f0d58694c046d691c921915e763aac
+          git remote add origin https://github.com/cinit/TMoe.git
+          git fetch --depth=1 origin 25043bcd95f0d58694c046d691c921915e763aac
+          git checkout --detach FETCH_HEAD
 
       - name: Prepare embedded TMoe
         shell: bash
