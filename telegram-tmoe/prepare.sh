@@ -16,10 +16,6 @@ if plugin_needle not in s:
 if "apply plugin: 'org.jetbrains.kotlin.android'" not in s:
     s = s.replace(plugin_needle, plugin_needle + "apply plugin: 'org.jetbrains.kotlin.android'\n", 1)
 
-# TMoe uses AndroidX RecyclerView directly; Telegram normally excludes it because
-# the official client uses its own RecyclerView implementation.
-s = s.replace("    exclude group: 'androidx.recyclerview', module: 'recyclerview'\n", "")
-
 repo_needle = """repositories {
     mavenCentral()
     google()
@@ -43,7 +39,6 @@ insert = """dependencies {
     implementation 'com.google.guava:guava:33.3.1-android'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.recyclerview:recyclerview:1.4.0'
     implementation 'com.github.kyuubiran:EzXHelper:1.0.3'
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 """
