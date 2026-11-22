@@ -164,6 +164,22 @@ for values_dir in src.glob("values*"):
             )
 PY
 
+# Keep Telegram's original minSdk 23 while allowing EzXHelper 1.x.
+# EzXHelper's reflection/hook helpers used by TMoe do not require API 24 at manifest level.
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("telegram/TMessagesProj/config/release/AndroidManifest_SDK23.xml")
+s = p.read_text()
+needle = '    android:installLocation="auto">\n'
+override = '    <uses-sdk tools:overrideLibrary="com.github.kyuubiran.ezxhelper" />\n\n'
+if 'tools:overrideLibrary="com.github.kyuubiran.ezxhelper"' not in s:
+    if needle not in s:
+        raise SystemExit("SDK23 manifest opening marker not found")
+    s = s.replace(needle, needle + "\n" + override, 1)
+p.write_text(s)
+PY
+
 # Embedded module shares Telegram's resource namespace.
 grep -RIl "cc.ioctl.tmoe.R" "$TG/TMessagesProj/src/main/java/cc/ioctl/tmoe" | while read -r file; do
   sed -i 's/cc\.ioctl\.tmoe\.R/org.telegram.messenger.R/g' "$file"
