@@ -263,21 +263,46 @@ package cc.ioctl.tmoe.embedded;
 
 import android.app.Application;
 
+import com.github.kyuubiran.ezxhelper.init.EzXHelperInit;
+
 import cc.ioctl.tmoe.startup.NativeLoader;
 import cc.ioctl.tmoe.startup.StartupRoutine;
+import de.robv.android.xposed.IXposedHookZygoteInit;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import top.canyie.pine.PineConfig;
 
 public final class EmbeddedEntry {
     private static boolean initialized;
+    private static boolean preInitialized;
 
     private EmbeddedEntry() {}
 
     public static synchronized void preInit(Application app) {
-        if (initialized) return;
+        if (preInitialized) return;
+
         PineConfig.debug = false;
         PineConfig.debuggable = false;
+
+        // Reproduce the Xposed lifecycle TMoe normally receives from LSPosed.
+        IXposedHookZygoteInit.StartupParam startupParam = new IXposedHookZygoteInit.StartupParam();
+        startupParam.modulePath = app.getApplicationInfo().sourceDir;
+        startupParam.startsSystemServer = false;
+        EzXHelperInit.INSTANCE.initZygote(startupParam);
+
+        XC_LoadPackage.LoadPackageParam loadPackageParam = new XC_LoadPackage.LoadPackageParam(
+                new XposedBridge.CopyOnWriteSortedSet<XC_LoadPackage>());
+        loadPackageParam.packageName = app.getPackageName();
+        loadPackageParam.processName = app.getPackageName();
+        loadPackageParam.classLoader = app.getClassLoader();
+        loadPackageParam.appInfo = app.getApplicationInfo();
+        loadPackageParam.isFirstApplication = true;
+        EzXHelperInit.INSTANCE.initHandleLoadPackage(loadPackageParam);
+        EzXHelperInit.INSTANCE.setLogTag("TMoe");
+
         NativeLoader.loadAllSharedLibraries(app);
         StartupRoutine.execPreStartupInit(app, null, false);
+        preInitialized = true;
     }
 
     public static synchronized void postInit() {
