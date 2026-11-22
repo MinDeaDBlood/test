@@ -319,14 +319,15 @@ python3 - <<'PY'
 from pathlib import Path
 p = Path("telegram/TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java")
 s = p.read_text()
-needle = "        super.onCreate();\n"
-replace = """        super.onCreate();
-
-        cc.ioctl.tmoe.embedded.EmbeddedEntry.preInit(this);
+engine_guard = """        if (org.telegram.utils.twidget.WidgetEngineService.isEngineProcess()) {
+            return;
+        }
 """
-if needle not in s:
-    raise SystemExit("super.onCreate marker not found")
-s = s.replace(needle, replace, 1)
+if engine_guard not in s:
+    raise SystemExit("widget engine guard not found")
+s = s.replace(engine_guard, engine_guard + """
+        cc.ioctl.tmoe.embedded.EmbeddedEntry.preInit(this);
+""", 1)
 
 needle2 = "        ProxyRotationController.init();\n"
 replace2 = """        ProxyRotationController.init();
