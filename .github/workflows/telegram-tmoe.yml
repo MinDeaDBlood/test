@@ -42,8 +42,12 @@ jobs:
       - name: Install Android toolchain
         shell: bash
         run: |
-          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
-          test -x "$SDKMANAGER"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          SDKROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDKROOT" /usr/local/lib/android -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          echo "sdkmanager=$SDKMANAGER"
+          test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
