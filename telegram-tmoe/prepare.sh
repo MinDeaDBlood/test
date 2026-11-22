@@ -45,6 +45,15 @@ insert = """dependencies {
 if needle not in s:
     raise SystemExit("dependencies block not found")
 s = s.replace(needle, insert, 1)
+# TMoe UI DSL uses Kotlin context receivers.
+s += """
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        freeCompilerArgs += "-Xcontext-receivers"
+        jvmTarget = "1.8"
+    }
+}
+"""
 p.write_text(s)
 PY
 
