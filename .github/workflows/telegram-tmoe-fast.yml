@@ -6,6 +6,7 @@ on:
       - telegram-13.2.2-tmoe-build
     paths:
       - ".github/workflows/telegram-tmoe-fast.yml"
+      - "telegram-tmoe/**"
   workflow_dispatch:
 
 permissions:
