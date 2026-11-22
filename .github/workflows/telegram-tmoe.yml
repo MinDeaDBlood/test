@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: telegram-13.2.2-tmoe-build
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build ${{ matrix.label }}
