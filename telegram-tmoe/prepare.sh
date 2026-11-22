@@ -10,6 +10,25 @@ python3 - <<'PY'
 from pathlib import Path
 p = Path("telegram/TMessagesProj/build.gradle")
 s = p.read_text()
+plugin_needle = "apply plugin: 'com.android.library'\n"
+if plugin_needle not in s:
+    raise SystemExit("android library plugin marker not found")
+if "apply plugin: 'org.jetbrains.kotlin.android'" not in s:
+    s = s.replace(plugin_needle, plugin_needle + "apply plugin: 'org.jetbrains.kotlin.android'\n", 1)
+
+repo_needle = """repositories {
+    mavenCentral()
+    google()
+}"""
+repo_repl = """repositories {
+    mavenCentral()
+    google()
+    maven { url 'https://jitpack.io' }
+}"""
+if repo_needle not in s:
+    raise SystemExit("repositories block not found")
+s = s.replace(repo_needle, repo_repl, 1)
+
 needle = "dependencies {\n"
 insert = """dependencies {
     implementation 'top.canyie.pine:core:0.3.0'
@@ -19,6 +38,7 @@ insert = """dependencies {
     implementation 'org.smali:dexlib2:2.5.2'
     implementation 'com.google.guava:guava:33.3.1-android'
     implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.github.kyuubiran:EzXHelper:1.0.3'
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 """
