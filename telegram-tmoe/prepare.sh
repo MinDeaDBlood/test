@@ -62,8 +62,81 @@ mkdir -p "$TG/TMessagesProj/src/main/java/cc/ioctl"
 rm -rf "$TG/TMessagesProj/src/main/java/cc/ioctl/tmoe"
 cp -a "$TM/app/src/main/java/cc/ioctl/tmoe" "$TG/TMessagesProj/src/main/java/cc/ioctl/"
 
-# Copy TMoe resources, excluding module manifest/assets/xposed metadata.
-cp -a "$TM/app/src/main/res/." "$TG/TMessagesProj/src/main/res/"
+# Merge only TMoe resources needed by the embedded build.
+# Generic resources already provided by Telegram (Cancel, OK, etc.) are not duplicated.
+python3 - <<'PY'
+from pathlib import Path
+import shutil
+import xml.etree.ElementTree as ET
+
+src = Path("tmoe/app/src/main/res")
+dst = Path("telegram/TMessagesProj/src/main/res")
+
+# Build a global set of Telegram value resources to avoid overriding Telegram UI strings/styles.
+existing = set()
+for values_dir in dst.glob("values*"):
+    if not values_dir.is_dir():
+        continue
+    for xml in values_dir.glob("*.xml"):
+        try:
+            root = ET.parse(xml).getroot()
+        except Exception:
+            continue
+        for child in root:
+            name = child.attrib.get("name")
+            if not name:
+                continue
+            rtype = child.attrib.get("type") if child.tag == "item" else child.tag
+            existing.add((rtype, name))
+
+# Copy only the drawable assets actually referenced by TMoe.
+needed_drawables = {
+    "ic_refresh_24.xml",
+    "ic_round_swap_horiz_24.xml",
+    "ic_setting_hex_outline_24.xml",
+}
+for dname in ("drawable", "drawable-v24"):
+    sdir = src / dname
+    if not sdir.exists():
+        continue
+    ddir = dst / dname
+    ddir.mkdir(parents=True, exist_ok=True)
+    for p in sdir.iterdir():
+        if p.name in needed_drawables:
+            shutil.copy2(p, ddir / p.name)
+
+# Copy only unique top-level value resources, keeping TMoe locale variants.
+for values_dir in src.glob("values*"):
+    if not values_dir.is_dir():
+        continue
+    out_dir = dst / values_dir.name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for xml in values_dir.glob("*.xml"):
+        try:
+            tree = ET.parse(xml)
+            root = tree.getroot()
+        except Exception:
+            continue
+        new_root = ET.Element("resources")
+        kept = 0
+        for child in root:
+            name = child.attrib.get("name")
+            if not name:
+                new_root.append(child)
+                kept += 1
+                continue
+            rtype = child.attrib.get("type") if child.tag == "item" else child.tag
+            if (rtype, name) in existing:
+                continue
+            new_root.append(child)
+            kept += 1
+        if kept:
+            ET.ElementTree(new_root).write(
+                out_dir / ("tmoe_" + xml.name),
+                encoding="utf-8",
+                xml_declaration=True,
+            )
+PY
 
 # Embedded module shares Telegram's resource namespace.
 grep -RIl "cc.ioctl.tmoe.R" "$TG/TMessagesProj/src/main/java/cc/ioctl/tmoe" | while read -r file; do
