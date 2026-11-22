@@ -229,6 +229,7 @@ public final class NativeLoader {
 
     public static synchronized void loadAllSharedLibraries(Context ctx) {
         if (loaded) return;
+        System.loadLibrary("mmkv");
         File mmkvDir = new File(ctx.getFilesDir(), "tmoe_mmkv");
         if (!mmkvDir.exists()) {
             //noinspection ResultOfMethodCallIgnored
