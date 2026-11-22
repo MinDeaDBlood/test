@@ -36,6 +36,24 @@ cp -a "$TM/app/src/main/java/cc/ioctl/tmoe" "$TG/TMessagesProj/src/main/java/cc/
 # Copy TMoe resources, excluding module manifest/assets/xposed metadata.
 cp -a "$TM/app/src/main/res/." "$TG/TMessagesProj/src/main/res/"
 
+# Embedded module shares Telegram's resource namespace.
+grep -RIl "cc.ioctl.tmoe.R" "$TG/TMessagesProj/src/main/java/cc/ioctl/tmoe" | while read -r file; do
+  sed -i 's/cc\.ioctl\.tmoe\.R/org.telegram.messenger.R/g' "$file"
+done
+
+cat > "$TG/TMessagesProj/src/main/java/cc/ioctl/tmoe/BuildConfig.java" <<'JAVA'
+package cc.ioctl.tmoe;
+
+public final class BuildConfig {
+    public static final boolean DEBUG = false;
+    public static final String VERSION_NAME = "embedded-13.2.2";
+    public static final int VERSION_CODE = 7303;
+    public static final String BUILD_UUID = "telegram-13.2.2-tmoe";
+    public static final long BUILD_TIMESTAMP = 0L;
+    private BuildConfig() {}
+}
+JAVA
+
 # Generate the KSP-produced hook list statically from annotations.
 python3 - <<'PY'
 from pathlib import Path
@@ -54,8 +72,15 @@ for p in sorted(root.glob("*")):
         entries.append(f"        {stem}.INSTANCE")
 out = Path("telegram/TMessagesProj/src/main/java/cc/ioctl/tmoe/gen/AnnotatedFunctionHookEntryList.java")
 out.parent.mkdir(parents=True, exist_ok=True)
-imports = "\n".join(f"import cc.ioctl.tmoe.hook.func.{x.split('.')[0]};" for x in entries)
-body = ",\n".join(entries)
+names = []
+for p in sorted(root.glob("*")):
+    if p.suffix not in {".kt", ".java"}:
+        continue
+    txt = p.read_text(errors="ignore")
+    if "@FunctionHookEntry" in txt:
+        names.append(p.stem)
+imports = "\n".join(f"import cc.ioctl.tmoe.hook.func.{name};" for name in names)
+body = ",\n".join(f"        {name}.INSTANCE" for name in names)
 out.write_text(f"""package cc.ioctl.tmoe.gen;
 
 import cc.ioctl.tmoe.hook.base.BaseDynamicHook;
