@@ -16,6 +16,9 @@ if plugin_needle not in s:
 if "apply plugin: 'org.jetbrains.kotlin.android'" not in s:
     s = s.replace(plugin_needle, plugin_needle + "apply plugin: 'org.jetbrains.kotlin.android'\n", 1)
 
+s = s.replace("sourceCompatibility JavaVersion.VERSION_1_8", "sourceCompatibility JavaVersion.VERSION_11", 1)
+s = s.replace("targetCompatibility JavaVersion.VERSION_1_8", "targetCompatibility JavaVersion.VERSION_11", 1)
+
 repo_needle = """repositories {
     mavenCentral()
     google()
@@ -50,7 +53,7 @@ s += """
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
     kotlinOptions {
         freeCompilerArgs += "-Xcontext-receivers"
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 }
 """
@@ -61,6 +64,29 @@ PY
 mkdir -p "$TG/TMessagesProj/src/main/java/cc/ioctl"
 rm -rf "$TG/TMessagesProj/src/main/java/cc/ioctl/tmoe"
 cp -a "$TM/app/src/main/java/cc/ioctl/tmoe" "$TG/TMessagesProj/src/main/java/cc/ioctl/"
+
+python3 - <<'PY'
+from pathlib import Path
+
+for rel in [
+    "hook/func/AntiAntiCopy.kt",
+    "hook/func/HistoricalNewsOption.kt",
+]:
+    p = Path("telegram/TMessagesProj/src/main/java/cc/ioctl/tmoe") / rel
+    text = p.read_text()
+    text = text.replace("import android.app.AndroidAppHelper\n", "")
+    if "import cc.ioctl.tmoe.util.HostInfo\n" not in text:
+        insert_after = "import cc.ioctl.tmoe.ui.LocaleController\n"
+        if insert_after in text:
+            text = text.replace(insert_after, insert_after + "import cc.ioctl.tmoe.util.HostInfo\n", 1)
+        else:
+            text = text.replace("package cc.ioctl.tmoe.hook.func\n", "package cc.ioctl.tmoe.hook.func\n\nimport cc.ioctl.tmoe.util.HostInfo\n", 1)
+    text = text.replace(
+        "AndroidAppHelper.currentApplication().applicationContext",
+        "HostInfo.getApplication().applicationContext",
+    )
+    p.write_text(text)
+PY
 
 # Merge only TMoe resources needed by the embedded build.
 # Generic resources already provided by Telegram (Cancel, OK, etc.) are not duplicated.
