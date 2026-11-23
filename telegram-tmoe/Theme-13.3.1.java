@@ -237,185 +237,125 @@ public class Theme {
         return hasIntColor3 && hasIntColor1 && staticIntFields >= 100;
     }
 
+    private static Method sThemeGetColorI1 = null;
+    private static Method sThemeNameToKey = null;
+    private static Class<?> sResolvedThemeClass = null;
+    private static Class<?> sResolvedThemeKeyClass = null;
+    private static boolean sThemeClassScanDone = false;
+
+    /**
+     * Telegram 13.3.1 standalone is R8-minified:
+     *   org.telegram.ui.ActionBar.Theme -> org.telegram.ui.ActionBar.r6
+     *   Theme key name table helper      -> org.telegram.ui.ActionBar.z4
+     *
+     * Do not use hard-coded numeric key indexes. 13.3.1 inserted hundreds of
+     * keys, so old TMoe indexes address unrelated colors and produce the
+     * "rainbow" settings screen.
+     */
     private static Class<?> resolveThemeClass() {
+        Class<?> readable = ClassLocator.getThemeClass();
+        if (readable != null) {
+            return readable;
+        }
         if (sResolvedThemeClass != null || sThemeClassScanDone) {
             return sResolvedThemeClass;
         }
-
-        Class<?> readable = ClassLocator.getThemeClass();
-        if (isThemeCandidate(readable)) {
-            sResolvedThemeClass = readable;
-            return readable;
-        }
-
         sThemeClassScanDone = true;
+
         ClassLoader loader = Initiator.getHostClassLoader();
         if (loader == null) {
             return null;
         }
 
-        // Theme lives in ActionBar. Restricting the search both speeds startup
-        // and makes false positives far less likely on heavily R8-obfuscated builds.
+        // Exact 13.3.1 R8 name, guarded by method shape.
+        try {
+            Class<?> candidate = Class.forName("org.telegram.ui.ActionBar.r6", false, loader);
+            Method getColor = candidate.getDeclaredMethod("v0", int.class);
+            if (Modifier.isStatic(getColor.getModifiers()) && getColor.getReturnType() == int.class) {
+                getColor.setAccessible(true);
+                sThemeGetColorI1 = getColor;
+                sResolvedThemeClass = candidate;
+                Utils.logd("TMoe: Telegram Theme resolved: " + candidate.getName() + "#v0(int)");
+                return candidate;
+            }
+        } catch (Throwable ignored) {
+        }
+
+        // Unobfuscated/fork fallback.
         for (String className : HostDexClassScanner.allClassesWithPrefix("org.telegram.ui.ActionBar.")) {
             try {
                 Class<?> candidate = Class.forName(className, false, loader);
-                if (isThemeCandidate(candidate)) {
+                Method named = null;
+                try {
+                    named = candidate.getDeclaredMethod("getColor", int.class);
+                } catch (NoSuchMethodException ignored) {
+                }
+                if (named != null && Modifier.isStatic(named.getModifiers())
+                        && named.getReturnType() == int.class) {
+                    named.setAccessible(true);
+                    sThemeGetColorI1 = named;
                     sResolvedThemeClass = candidate;
-                    Utils.logd("TMoe: Telegram 13 Theme resolved structurally: " + className);
+                    Utils.logd("TMoe: Telegram Theme resolved by readable getColor: " + className);
                     return candidate;
                 }
             } catch (Throwable ignored) {
             }
         }
-        Utils.loge("TMoe: Telegram 13 Theme class not resolved");
         return null;
     }
 
-    /**
-     * Telegram 13.3.1 uses integer Theme keys. R8 renames the public key_* fields,
-     * so the old TMoe reflection-by-field-name path cannot work. These values are
-     * the stable colorsCount indices used by the 13.3.x Theme table.
-     */
-    private static int telegram13ColorKeyIndex(String key) {
-        switch (key) {
-            case "dialogBackground": return 1;
-            case "dialogBackgroundGray": return 2;
-            case "dialogTextBlack": return 3;
-            case "dialogTextLink": return 4;
-            case "dialogLinkSelection": return 5;
-            case "dialogTextBlue": return 6;
-            case "dialogTextBlue2": return 7;
-            case "dialogTextBlue4": return 8;
-            case "dialogTextGray": return 9;
-            case "dialogTextGray2": return 10;
-            case "dialogTextGray3": return 11;
-            case "dialogTextGray4": return 12;
-            case "dialogTextHint": return 13;
-            case "dialogInputField": return 14;
-            case "dialogInputFieldActivated": return 15;
-            case "dialogCheckboxSquareBackground": return 16;
-            case "dialogCheckboxSquareCheck": return 17;
-            case "dialogCheckboxSquareUnchecked": return 18;
-            case "dialogCheckboxSquareDisabled": return 19;
-            case "dialogScrollGlow": return 20;
-            case "dialogRoundCheckBox": return 21;
-            case "dialogRoundCheckBoxCheck": return 22;
-            case "dialogRadioBackground": return 23;
-            case "dialogRadioBackgroundChecked": return 24;
-            case "dialogLineProgress": return 25;
-            case "dialogLineProgressBackground": return 26;
-            case "dialogButton": return 27;
-            case "dialogButtonSelector": return 28;
-            case "dialogIcon": return 29;
-            case "dialogGrayLine": return 30;
-            case "dialogTopBackground": return 31;
-            case "dialog_inlineProgressBackground": return 32;
-            case "dialog_inlineProgress": return 33;
-            case "dialogSearchBackground": return 34;
-            case "dialogSearchHint": return 35;
-            case "dialogSearchIcon": return 36;
-            case "dialogSearchText": return 37;
-            case "dialogFloatingButton": return 38;
-            case "dialogFloatingButtonPressed": return 39;
-            case "dialogFloatingIcon": return 40;
-            case "dialogShadowLine": return 41;
-            case "dialogEmptyImage": return 42;
-            case "dialogEmptyText": return 43;
-            case "dialogSwipeRemove": return 44;
-            case "windowBackgroundWhite": return 49;
-            case "windowBackgroundUnchecked": return 50;
-            case "windowBackgroundChecked": return 51;
-            case "windowBackgroundCheckText": return 52;
-            case "progressCircle": return 53;
-            case "listSelectorSDK21":
-            case "listSelector": return 54;
-            case "windowBackgroundWhiteInputField": return 56;
-            case "windowBackgroundWhiteInputFieldActivated": return 57;
-            case "windowBackgroundWhiteGrayIcon": return 58;
-            case "windowBackgroundWhiteBlueText": return 59;
-            case "windowBackgroundWhiteBlueText2": return 60;
-            case "windowBackgroundWhiteBlueText3": return 61;
-            case "windowBackgroundWhiteBlueText4": return 62;
-            case "windowBackgroundWhiteBlueText5": return 63;
-            case "windowBackgroundWhiteBlueText6": return 64;
-            case "windowBackgroundWhiteBlueText7": return 65;
-            case "windowBackgroundWhiteBlueButton": return 66;
-            case "windowBackgroundWhiteBlueIcon": return 67;
-            case "windowBackgroundWhiteGreenText": return 68;
-            case "windowBackgroundWhiteGreenText2": return 69;
-            case "windowBackgroundWhiteGrayText": return 70;
-            case "windowBackgroundWhiteGrayText2": return 71;
-            case "windowBackgroundWhiteGrayText3": return 72;
-            case "windowBackgroundWhiteGrayText4": return 73;
-            case "windowBackgroundWhiteGrayText5": return 74;
-            case "windowBackgroundWhiteGrayText6": return 75;
-            case "windowBackgroundWhiteGrayText7": return 76;
-            case "windowBackgroundWhiteGrayText8": return 77;
-            case "windowBackgroundWhiteBlackText": return 78;
-            case "windowBackgroundWhiteHintText": return 79;
-            case "windowBackgroundWhiteValueText": return 80;
-            case "windowBackgroundWhiteLinkText": return 81;
-            case "windowBackgroundWhiteLinkSelection": return 82;
-            case "windowBackgroundWhiteBlueHeader": return 83;
-            case "switchTrack": return 84;
-            case "switchTrackChecked": return 85;
-            case "switchTrackBlue": return 86;
-            case "switchTrackBlueChecked": return 87;
-            case "switchTrackBlueThumb": return 88;
-            case "switchTrackBlueThumbChecked": return 89;
-            case "switchTrackBlueSelector": return 90;
-            case "switchTrackBlueSelectorChecked": return 91;
-            case "switch2Track": return 92;
-            case "switch2TrackChecked": return 93;
-            case "checkboxSquareBackground": return 94;
-            case "checkboxSquareCheck": return 95;
-            case "checkboxSquareUnchecked": return 96;
-            case "checkboxSquareDisabled": return 97;
-            case "windowBackgroundGray": return 98;
-            case "windowBackgroundGrayShadow": return 99;
-            case "divider": return 101;
-            case "graySection": return 102;
-            case "key_graySectionText":
-            case "graySectionText": return 103;
-            case "radioBackground": return 104;
-            case "radioBackgroundChecked": return 105;
-            case "checkbox": return 106;
-            case "checkboxDisabled": return 107;
-            case "checkboxCheck": return 108;
-            case "fastScrollActive": return 109;
-            case "fastScrollInactive": return 110;
-            case "fastScrollText": return 111;
-            case "actionBarDefault": return 165;
-            case "actionBarDefaultSelector": return 166;
-            case "actionBarWhiteSelector": return 167;
-            case "actionBarDefaultIcon": return 168;
-            case "actionBarActionModeDefault": return 169;
-            case "actionBarActionModeDefaultTop": return 170;
-            case "actionBarActionModeDefaultIcon": return 171;
-            case "actionBarActionModeDefaultSelector": return 172;
-            case "actionBarDefaultTitle": return 173;
-            case "actionBarDefaultSubtitle": return 174;
-            case "actionBarDefaultSearch": return 175;
-            case "actionBarDefaultSearchPlaceholder": return 176;
-            case "actionBarDefaultSubmenuItem": return 177;
-            case "actionBarDefaultSubmenuItemIcon": return 178;
-            case "actionBarDefaultSubmenuBackground": return 179;
-            case "actionBarTabActiveText": return 181;
-            case "actionBarTabUnactiveText": return 182;
-            case "actionBarTabLine": return 183;
-            case "actionBarTabSelector": return 184;
-            case "actionBarDefaultArchived": return 185;
-            case "actionBarDefaultArchivedSelector": return 186;
-            case "actionBarDefaultArchivedIcon": return 187;
-            case "actionBarDefaultArchivedTitle": return 188;
-            case "actionBarDefaultArchivedSearch": return 189;
-            case "actionBarDefaultSearchArchivedPlaceholder": return 190;
-            case "actionBarBrowser": return 191;
-            default: return -1;
+    private static Method resolveThemeNameToKey() {
+        if (sThemeNameToKey != null) {
+            return sThemeNameToKey;
         }
+        ClassLoader loader = Initiator.getHostClassLoader();
+        if (loader == null) {
+            return null;
+        }
+
+        // Exact 13.3.1 helper: z4.h(String) maps "windowBackgroundWhite" etc.
+        try {
+            Class<?> helper = Class.forName("org.telegram.ui.ActionBar.z4", false, loader);
+            Method m = helper.getDeclaredMethod("h", String.class);
+            if (Modifier.isStatic(m.getModifiers()) && m.getReturnType() == int.class) {
+                m.setAccessible(true);
+                sResolvedThemeKeyClass = helper;
+                sThemeNameToKey = m;
+                return m;
+            }
+        } catch (Throwable ignored) {
+        }
+
+        // On readable Telegram builds the key_* fields are still available.
+        return null;
+    }
+
+    private static int resolveColorKeyIndex(Class<?> themeClass, String key) {
+        Method mapper = resolveThemeNameToKey();
+        if (mapper != null) {
+            try {
+                int value = (Integer) mapper.invoke(null, key);
+                if (value >= 0) {
+                    return value;
+                }
+            } catch (Throwable e) {
+                Utils.loge(e);
+            }
+        }
+
+        if (themeClass != null) {
+            try {
+                Field field = themeClass.getDeclaredField("key_" + key);
+                field.setAccessible(true);
+                return field.getInt(null);
+            } catch (Throwable ignored) {
+            }
+        }
+        return -1;
     }
 
     private static int neutralFallbackColor(String key) {
+        // Stable emergency colors only. Never use random colors.
         if (key.contains("BackgroundGray") || key.equals("graySection")) return 0xfff1f1f1;
         if (key.contains("GrayText") || key.contains("Hint")) return 0xff8a8a8a;
         if (key.contains("Blue") || key.contains("Checked") || key.contains("actionBar")) return 0xff168acd;
@@ -426,57 +366,68 @@ public class Theme {
 
     public static int getColor(String key, boolean[] isDefault, boolean ignoreAnimation) {
         final Class<?> kTheme = resolveThemeClass();
-        if (sThemeGetColor3 == null && sThemeGetColorI3 == null && kTheme != null) {
+        if (kTheme == null) {
+            return neutralFallbackColor(key);
+        }
+
+        // Readable builds can still expose the historical String overload.
+        if (sThemeGetColor3 == null) {
             for (Method method : kTheme.getDeclaredMethods()) {
-                if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != Integer.TYPE) {
+                if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != int.class) {
                     continue;
                 }
-                Class<?>[] params = method.getParameterTypes();
-                if (params.length == 3 && params[0] == String.class
-                        && params[1] == boolean[].class && params[2] == boolean.class) {
+                Class<?>[] p = method.getParameterTypes();
+                if (p.length == 3 && p[0] == String.class
+                        && p[1] == boolean[].class && p[2] == boolean.class) {
                     method.setAccessible(true);
                     sThemeGetColor3 = method;
                     break;
-                }
-                if (params.length == 3 && params[0] == int.class
-                        && params[1] == boolean[].class && params[2] == boolean.class) {
-                    method.setAccessible(true);
-                    sThemeGetColorI3 = method;
                 }
             }
         }
         if (sThemeGetColor3 != null) {
             try {
                 return (Integer) sThemeGetColor3.invoke(null, key, isDefault, ignoreAnimation);
-            } catch (ReflectiveOperationException e) {
+            } catch (Throwable e) {
                 Utils.loge(e);
             }
         }
-        if (sThemeGetColorI3 != null && kTheme != null) {
-            Integer cached = sCachedColorKeyIndex.get(key);
-            int index = cached != null ? cached : -1;
-            if (index < 0) {
-                try {
-                    Field field = kTheme.getDeclaredField("key_" + key);
-                    field.setAccessible(true);
-                    index = field.getInt(null);
-                } catch (ReflectiveOperationException ignored) {
-                    index = telegram13ColorKeyIndex(key);
+
+        int index = resolveColorKeyIndex(kTheme, key);
+        if (index >= 0) {
+            try {
+                if (sThemeGetColorI1 == null) {
+                    try {
+                        Method m = kTheme.getDeclaredMethod("getColor", int.class);
+                        m.setAccessible(true);
+                        sThemeGetColorI1 = m;
+                    } catch (NoSuchMethodException ignored) {
+                    }
                 }
-                if (index >= 0) {
-                    sCachedColorKeyIndex.put(key, index);
+                if (sThemeGetColorI1 != null) {
+                    return (Integer) sThemeGetColorI1.invoke(null, index);
                 }
-            }
-            if (index >= 0) {
-                try {
+
+                // Last-resort method shape for forks that keep the 3-argument overload.
+                if (sThemeGetColorI3 == null) {
+                    for (Method method : kTheme.getDeclaredMethods()) {
+                        if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != int.class) continue;
+                        Class<?>[] p = method.getParameterTypes();
+                        if (p.length == 3 && p[0] == int.class
+                                && p[1] == boolean[].class && p[2] == boolean.class) {
+                            method.setAccessible(true);
+                            sThemeGetColorI3 = method;
+                            break;
+                        }
+                    }
+                }
+                if (sThemeGetColorI3 != null) {
                     return (Integer) sThemeGetColorI3.invoke(null, index, isDefault, ignoreAnimation);
-                } catch (ReflectiveOperationException e) {
-                    Utils.loge(e);
                 }
+            } catch (Throwable e) {
+                Utils.loge(e);
             }
         }
-        // Never paint the settings page with random colors. A neutral fallback is
-        // visually safe and makes the screen usable even if Telegram changes again.
         return neutralFallbackColor(key);
     }
 
