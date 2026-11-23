@@ -337,6 +337,27 @@ public class SettingEntryHook implements Initializable, ProfileActivityRowHook.C
         return null;
     }
 
+    private static Object findCapturedInstance(Object wrapper, Class<?> expectedType) {
+        if (wrapper == null || expectedType == null) {
+            return null;
+        }
+        try {
+            for (Field f : wrapper.getClass().getDeclaredFields()) {
+                if (Modifier.isStatic(f.getModifiers())) {
+                    continue;
+                }
+                f.setAccessible(true);
+                Object value = f.get(wrapper);
+                if (expectedType.isInstance(value)) {
+                    return value;
+                }
+            }
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
+        return null;
+    }
+
     private static Method findStaticFactory(Class<?> owner, String name, Class<?> returnType, int parameterCount)
             throws NoSuchMethodException {
         for (Method m : owner.getDeclaredMethods()) {
