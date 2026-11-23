@@ -8,7 +8,6 @@ import java.lang.reflect.Method;
 import cc.ioctl.tmoe.hook.core.SettingEntryHook;
 import cc.ioctl.tmoe.util.HostInfo;
 import cc.ioctl.tmoe.util.Initiator;
-import cc.ioctl.tmoe.util.Telegram13ClassLoader;
 import cc.ioctl.tmoe.util.Utils;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -72,8 +71,7 @@ public final class Telegram13Bootstrap {
                     Application app = (Application) param.thisObject;
                     try {
                         HostInfo.setHostApplication(app);
-                        Initiator.initWithHostClassLoader(
-                                Telegram13ClassLoader.getOrCreate(app.getClassLoader()));
+                        Initiator.initWithHostClassLoader(app.getClassLoader());
                     } catch (Throwable e) {
                         Utils.loge(e);
                     }
