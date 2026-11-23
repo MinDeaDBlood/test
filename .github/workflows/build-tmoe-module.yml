@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/build-tmoe-module.yml"
       - "telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py"
+      - "telegram-tmoe/SettingEntryHook-13.3.1.java"
   workflow_dispatch:
 
 permissions:
@@ -37,10 +38,13 @@ jobs:
           git checkout --detach FETCH_HEAD
           git submodule update --init --recursive --depth=1
 
-      - name: Patch TMoe for obfuscated Telegram 13.3.1 settings
+      - name: Install Telegram 13.3.1 native TMoe settings hook
         shell: bash
         run: |
-          python3 telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py
+          set -euxo pipefail
+          cp telegram-tmoe/SettingEntryHook-13.3.1.java             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
+          grep -q 'org.telegram.ui.y41'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
+          grep -q 'headerFactory'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
 
       - name: Configure Android SDK
         shell: bash
