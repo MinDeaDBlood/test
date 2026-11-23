@@ -336,7 +336,6 @@ import com.github.kyuubiran.ezxhelper.init.EzXHelperInit;
 
 import cc.ioctl.tmoe.startup.NativeLoader;
 import cc.ioctl.tmoe.startup.StartupRoutine;
-import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import top.canyie.pine.PineConfig;
@@ -353,12 +352,9 @@ public final class EmbeddedEntry {
         PineConfig.debug = false;
         PineConfig.debuggable = false;
 
-        // Reproduce the Xposed lifecycle TMoe normally receives from LSPosed.
-        IXposedHookZygoteInit.StartupParam startupParam = new IXposedHookZygoteInit.StartupParam();
-        startupParam.modulePath = app.getApplicationInfo().sourceDir;
-        startupParam.startsSystemServer = false;
-        EzXHelperInit.INSTANCE.initZygote(startupParam);
-
+        // Embedded Pine mode does not have Xposed's android.content.res.XResources/
+        // XModuleResources classes. Do not run EzXHelper's real-Xposed zygote
+        // resource initialization here; TMoe resources are merged into Telegram.
         XC_LoadPackage.LoadPackageParam loadPackageParam = new XC_LoadPackage.LoadPackageParam(
                 new XposedBridge.CopyOnWriteSortedSet<XC_LoadPackage>());
         loadPackageParam.packageName = app.getPackageName();
