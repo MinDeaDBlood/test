@@ -52,6 +52,39 @@ jobs:
           git submodule update --init --recursive --depth=1
           echo "sdk.dir=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > local.properties
 
+      - name: Export tgnet LOGS_ENABLED for legacy TMoe native controller
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cpp = Path("telegram/TMessagesProj/jni/tgnet/FileLog.cpp")
+          s = cpp.read_text()
+          s = s.replace(
+              "bool LOGS_ENABLED = true;",
+              '__attribute__((visibility("default"), used)) bool LOGS_ENABLED = true;'
+          )
+          s = s.replace(
+              "bool LOGS_ENABLED = false;",
+              '__attribute__((visibility("default"), used)) bool LOGS_ENABLED = false;'
+          )
+          if 'visibility("default"), used' not in s:
+              raise SystemExit("FileLog.cpp LOGS_ENABLED marker not patched")
+          cpp.write_text(s)
+
+          exports = Path("telegram/TMessagesProj/jni/exports.map")
+          e = exports.read_text()
+          needle = "    JNI_OnUnload;\n"
+          if needle not in e:
+              raise SystemExit("exports.map marker not found")
+          if "    LOGS_ENABLED;\n" not in e:
+              e = e.replace(needle, needle + "    LOGS_ENABLED;\n", 1)
+          exports.write_text(e)
+          PY
+          grep -n 'LOGS_ENABLED' telegram/TMessagesProj/jni/tgnet/FileLog.cpp
+          grep -n 'LOGS_ENABLED' telegram/TMessagesProj/jni/exports.map
+
       - name: Preserve legacy TMoe host API names
         shell: bash
         run: |
@@ -164,6 +197,38 @@ jobs:
             cp "$MAP" ../out/mapping.txt
           fi
           sha256sum ../out/Telegram-13.3.1-TMoe-compat-host.apk | tee ../out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
+
+      - name: Verify tgnet LOGS_ENABLED export
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK=out/Telegram-13.3.1-TMoe-compat-host.apk
+          mkdir -p native-check
+          unzip -j "$APK" 'lib/arm64-v8a/libtmessages.49.so' -d native-check
+          readelf -Ws native-check/libtmessages.49.so | tee out/libtmessages-symbols.txt
+          grep -E '[[:space:]]LOGS_ENABLED          set -euxo pipefail
+          if [ -s out/mapping.txt ]; then
+            for C in               org.telegram.messenger.ApplicationLoader               org.telegram.messenger.MessageObject               org.telegram.messenger.MessagesController               org.telegram.messenger.UserConfig               org.telegram.messenger.SharedConfig               org.telegram.ui.ActionBar.Theme               org.telegram.ui.ActionBar.BaseFragment               org.telegram.ui.ChatActivity               org.telegram.ui.Cells.ChatMessageCell               org.telegram.ui.Stories.StoriesController; do
+              grep -E "^$C -> $C:$" out/mapping.txt || {
+                echo "NOT PRESERVED: $C"
+                grep -E "^$C -> " out/mapping.txt || true
+                exit 1
+              }
+            done
+          fi
+
+      - name: Upload host
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-13.3.1-TMoe-compat-host
+          path: |
+            out/Telegram-13.3.1-TMoe-compat-host.apk
+            out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
+            out/mapping.txt
+            out/libtmessages-symbols.txt
+          if-no-files-found: error
+          retention-days: 30
+ out/libtmessages-symbols.txt
 
       - name: Verify preserved API names in mapping
         shell: bash
