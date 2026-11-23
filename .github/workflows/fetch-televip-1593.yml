@@ -1,0 +1,35 @@
+name: Fetch Re-TeleVIP 1.5.93
+
+on:
+  push:
+    branches:
+      - telegram-13.3.1-televip-dev
+    paths:
+      - ".github/workflows/fetch-televip-1593.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download pre-Premium APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail --retry 3 \
+            -o TeleVip-1.5.93-release.apk \
+            https://github.com/Dream1Works/Re-TeleVIP/releases/download/v1.5.93/TeleVip-1.5.93-release.apk
+          sha256sum TeleVip-1.5.93-release.apk | tee TeleVip-1.5.93-release.apk.sha256
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: TeleVip-1.5.93-release
+          path: |
+            TeleVip-1.5.93-release.apk
+            TeleVip-1.5.93-release.apk.sha256
+          if-no-files-found: error
+          retention-days: 7
