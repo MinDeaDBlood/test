@@ -53,6 +53,11 @@ public class SettingEntryHook implements Initializable, ProfileActivityRowHook.C
             Collections.synchronizedMap(new IdentityHashMap<>());
 
     private boolean mInitialized = false;
+    private static volatile String sDiagnosticStatus = "not initialized";
+
+    public static String getDiagnosticStatus() {
+        return sDiagnosticStatus;
+    }
 
     private SettingEntryHook() {}
 
@@ -82,6 +87,7 @@ public class SettingEntryHook implements Initializable, ProfileActivityRowHook.C
         }
 
         if (!hooked) {
+            sDiagnosticStatus = "settings not resolved";
             Utils.logw("TMoe: SettingsActivity hook was not resolved");
         }
         mInitialized = true;
@@ -213,6 +219,7 @@ public class SettingEntryHook implements Initializable, ProfileActivityRowHook.C
                     }
                 }
             });
+            sDiagnosticStatus = "readable SettingsActivity";
             Utils.logd("TMoe: hooked readable SettingsActivity");
             return true;
         } catch (Throwable e) {
@@ -287,6 +294,7 @@ public class SettingEntryHook implements Initializable, ProfileActivityRowHook.C
             }
         });
 
+        sDiagnosticStatus = "R8 " + loc.fragment.getName() + " " + loc.fill.getName() + "/" + loc.click.getName();
         Utils.logd("TMoe: dynamically hooked Settings in " + loc.fragment.getName()
                 + " (" + loc.fill.getName() + "/" + loc.click.getName() + ")");
         return true;
