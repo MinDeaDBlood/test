@@ -62,7 +62,7 @@ jobs:
           grep -q 'HostDexClassScanner' tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
           grep -q 'allClassesWithPrefix' tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
           grep -q 'getParentFragment' tmoe/app/src/main/java/cc/ioctl/tmoe/compat/Telegram13ClassResolver.java
-          grep -q 'Telegram 13 Theme resolved by method shape' tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
+          grep -q 'Telegram 13 Theme resolved structurally' tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
           grep -q 'makeSectionRowBackground' tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
           grep -q 'proxy fragment unavailable' tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
           grep -q 'Telegram13Bootstrap.install' tmoe/app/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java
