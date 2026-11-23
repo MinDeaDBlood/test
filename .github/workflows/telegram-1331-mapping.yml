@@ -47,25 +47,31 @@ jobs:
           git submodule update --init --recursive --depth=1
           echo "sdk.dir=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > local.properties
 
-      - name: Generate standalone R8 mapping
+      - name: Build standalone reference and R8 mapping
         shell: bash
         run: |
           set -euxo pipefail
           cd telegram
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace :TMessagesProj_AppStandalone:minifyAfatStandaloneWithR8
-          find TMessagesProj_AppStandalone/build/outputs/mapping -type f -maxdepth 4 -print || true
-          MAP="$(find TMessagesProj_AppStandalone/build/outputs/mapping -type f -name mapping.txt | head -n 1)"
-          test -n "$MAP"
-          cp "$MAP" ../mapping.txt
-          grep -E '^org\.telegram\.(ui\.ActionBar\.BaseFragment|ui\.ChatActivity|messenger\.MessageObject|messenger\.MessagesController|messenger\.LocaleController|messenger\.UserConfig|messenger\.SharedConfig|messenger\.DownloadController|messenger\.FileLoadOperation|messenger\.FileUploadOperation|ui\.ActionBar\.Theme) -> ' ../mapping.txt | tee ../anchor-map.txt || true
+          ./gradlew --no-daemon --stacktrace :TMessagesProj_AppStandalone:assembleAfatStandalone
 
-      - name: Upload mapping
+          MAP="$(find TMessagesProj_AppStandalone/build/outputs/mapping -type f -name mapping.txt | head -n 1)"
+          APK="$(find TMessagesProj_AppStandalone/build/outputs/apk -type f -name '*.apk' | head -n 1)"
+          test -n "$MAP"
+          test -n "$APK"
+          cp "$MAP" ../mapping.txt
+          cp "$APK" ../reference-standalone.apk
+          sha256sum ../reference-standalone.apk | tee ../reference-standalone.apk.sha256
+          grep -E '^org\.telegram\.(ui\.ActionBar\.BaseFragment|ui\.ChatActivity|ui\.Cells\.ChatMessageCell|ui\.Components\.ChatActivityEnterView|messenger\.MessageObject|messenger\.MessagesController|messenger\.MessagesStorage|messenger\.NotificationsController|messenger\.NotificationCenter|messenger\.LocaleController|messenger\.UserConfig|messenger\.SharedConfig|messenger\.DownloadController|messenger\.FileLoadOperation|messenger\.FileUploadOperation|ui\.Stories\.StoriesController|ui\.ActionBar\.Theme) -> ' ../mapping.txt | tee ../anchor-map.txt || true
+
+      - name: Upload mapping and bytecode reference
         uses: actions/upload-artifact@v4
         with:
-          name: Telegram-13.3.1-R8-mapping
+          name: Telegram-13.3.1-R8-reference
           path: |
             mapping.txt
             anchor-map.txt
+            reference-standalone.apk
+            reference-standalone.apk.sha256
           if-no-files-found: error
           retention-days: 30
