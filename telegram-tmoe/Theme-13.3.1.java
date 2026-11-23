@@ -205,46 +205,70 @@ public class Theme {
 
     private static final HashMap<String, Integer> sCachedColorKeyIndex = new HashMap<>();
 
-    private static Class<?> resolveThemeClass() {
-        Class<?> readable = ClassLocator.getThemeClass();
-        if (readable != null) {
-            return readable;
+    private static boolean isThemeCandidate(Class<?> candidate) {
+        if (candidate == null) return false;
+        boolean hasIntColor3 = false;
+        boolean hasIntColor1 = false;
+        int staticIntFields = 0;
+        try {
+            for (Field field : candidate.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) && field.getType() == int.class) {
+                    staticIntFields++;
+                }
+            }
+            for (Method method : candidate.getDeclaredMethods()) {
+                if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != Integer.TYPE) {
+                    continue;
+                }
+                Class<?>[] p = method.getParameterTypes();
+                if (p.length == 3 && p[0] == int.class
+                        && p[1] == boolean[].class && p[2] == boolean.class) {
+                    hasIntColor3 = true;
+                } else if (p.length == 1 && p[0] == int.class) {
+                    hasIntColor1 = true;
+                }
+            }
+        } catch (Throwable ignored) {
+            return false;
         }
+        // Telegram Theme owns hundreds of integer color keys. The old method-only
+        // resolver could accidentally select another R8 class with the same two
+        // helper signatures, which produced the "rainbow" settings screen.
+        return hasIntColor3 && hasIntColor1 && staticIntFields >= 100;
+    }
+
+    private static Class<?> resolveThemeClass() {
         if (sResolvedThemeClass != null || sThemeClassScanDone) {
             return sResolvedThemeClass;
         }
-        sThemeClassScanDone = true;
 
+        Class<?> readable = ClassLocator.getThemeClass();
+        if (isThemeCandidate(readable)) {
+            sResolvedThemeClass = readable;
+            return readable;
+        }
+
+        sThemeClassScanDone = true;
         ClassLoader loader = Initiator.getHostClassLoader();
         if (loader == null) {
             return null;
         }
-        for (String className : HostDexClassScanner.allClassesWithPrefix("org.telegram.ui.")) {
+
+        // Theme lives in ActionBar. Restricting the search both speeds startup
+        // and makes false positives far less likely on heavily R8-obfuscated builds.
+        for (String className : HostDexClassScanner.allClassesWithPrefix("org.telegram.ui.ActionBar.")) {
             try {
                 Class<?> candidate = Class.forName(className, false, loader);
-                boolean hasIntColor3 = false;
-                boolean hasIntColor1 = false;
-                for (Method method : candidate.getDeclaredMethods()) {
-                    if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != Integer.TYPE) {
-                        continue;
-                    }
-                    Class<?>[] p = method.getParameterTypes();
-                    if (p.length == 3 && p[0] == int.class
-                            && p[1] == boolean[].class && p[2] == boolean.class) {
-                        hasIntColor3 = true;
-                    } else if (p.length == 1 && p[0] == int.class) {
-                        hasIntColor1 = true;
-                    }
-                }
-                if (hasIntColor3 && hasIntColor1) {
+                if (isThemeCandidate(candidate)) {
                     sResolvedThemeClass = candidate;
-                    Utils.logd("TMoe: Telegram 13 Theme resolved by method shape: " + className);
-                    break;
+                    Utils.logd("TMoe: Telegram 13 Theme resolved structurally: " + className);
+                    return candidate;
                 }
             } catch (Throwable ignored) {
             }
         }
-        return sResolvedThemeClass;
+        Utils.loge("TMoe: Telegram 13 Theme class not resolved");
+        return null;
     }
 
     /**
@@ -361,32 +385,32 @@ public class Theme {
             case "fastScrollActive": return 109;
             case "fastScrollInactive": return 110;
             case "fastScrollText": return 111;
-            case "actionBarDefault": return 168;
-            case "actionBarDefaultSelector": return 169;
-            case "actionBarWhiteSelector": return 170;
-            case "actionBarDefaultIcon": return 171;
-            case "actionBarActionModeDefault": return 172;
-            case "actionBarActionModeDefaultTop": return 173;
-            case "actionBarActionModeDefaultIcon": return 174;
-            case "actionBarActionModeDefaultSelector": return 175;
-            case "actionBarDefaultTitle": return 176;
-            case "actionBarDefaultSubtitle": return 177;
-            case "actionBarDefaultSearch": return 178;
-            case "actionBarDefaultSearchPlaceholder": return 179;
-            case "actionBarDefaultSubmenuItem": return 180;
-            case "actionBarDefaultSubmenuItemIcon": return 181;
-            case "actionBarDefaultSubmenuBackground": return 182;
-            case "actionBarTabActiveText": return 184;
-            case "actionBarTabUnactiveText": return 185;
-            case "actionBarTabLine": return 186;
-            case "actionBarTabSelector": return 187;
-            case "actionBarDefaultArchived": return 188;
-            case "actionBarDefaultArchivedSelector": return 189;
-            case "actionBarDefaultArchivedIcon": return 190;
-            case "actionBarDefaultArchivedTitle": return 191;
-            case "actionBarDefaultArchivedSearch": return 192;
-            case "actionBarDefaultSearchArchivedPlaceholder": return 193;
-            case "actionBarBrowser": return 194;
+            case "actionBarDefault": return 165;
+            case "actionBarDefaultSelector": return 166;
+            case "actionBarWhiteSelector": return 167;
+            case "actionBarDefaultIcon": return 168;
+            case "actionBarActionModeDefault": return 169;
+            case "actionBarActionModeDefaultTop": return 170;
+            case "actionBarActionModeDefaultIcon": return 171;
+            case "actionBarActionModeDefaultSelector": return 172;
+            case "actionBarDefaultTitle": return 173;
+            case "actionBarDefaultSubtitle": return 174;
+            case "actionBarDefaultSearch": return 175;
+            case "actionBarDefaultSearchPlaceholder": return 176;
+            case "actionBarDefaultSubmenuItem": return 177;
+            case "actionBarDefaultSubmenuItemIcon": return 178;
+            case "actionBarDefaultSubmenuBackground": return 179;
+            case "actionBarTabActiveText": return 181;
+            case "actionBarTabUnactiveText": return 182;
+            case "actionBarTabLine": return 183;
+            case "actionBarTabSelector": return 184;
+            case "actionBarDefaultArchived": return 185;
+            case "actionBarDefaultArchivedSelector": return 186;
+            case "actionBarDefaultArchivedIcon": return 187;
+            case "actionBarDefaultArchivedTitle": return 188;
+            case "actionBarDefaultArchivedSearch": return 189;
+            case "actionBarDefaultSearchArchivedPlaceholder": return 190;
+            case "actionBarBrowser": return 191;
             default: return -1;
         }
     }
@@ -793,6 +817,9 @@ public class Theme {
 
     public static void invalidate() {
         sDividerPaint = null;
+        sThemeGetColor3 = null;
+        sThemeGetColorI3 = null;
+        sCachedColorKeyIndex.clear();
     }
 
     public static boolean isDarkTheme() {
