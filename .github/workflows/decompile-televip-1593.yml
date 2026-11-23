@@ -1,0 +1,46 @@
+name: Decompile Re-TeleVIP 1.5.93
+
+on:
+  push:
+    branches:
+      - telegram-13.3.1-televip-dev
+    paths:
+      - ".github/workflows/decompile-televip-1593.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  decompile:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download and decompile
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail --retry 3 -o televip.apk \
+            https://github.com/Dream1Works/Re-TeleVIP/releases/download/v1.5.93/TeleVip-1.5.93-release.apk
+          curl -L --fail --retry 3 -o jadx.zip \
+            https://github.com/skylot/jadx/releases/download/v1.5.7/jadx-1.5.7.zip
+          echo "1755e4242ade71a077438723689f404079592ec7764a3a0572f98fef94ebcbf3  jadx.zip" | sha256sum -c -
+          unzip -q jadx.zip -d jadx
+          chmod +x jadx/bin/jadx
+          mkdir -p out
+          jadx/bin/jadx --no-res --show-bad-code -d out televip.apk
+          find out/sources -type f | sort > out/files.txt
+          tar -czf TeleVip-1.5.93-jadx-sources.tar.gz -C out sources files.txt
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: TeleVip-1.5.93-jadx-sources
+          path: TeleVip-1.5.93-jadx-sources.tar.gz
+          if-no-files-found: error
+          retention-days: 7
