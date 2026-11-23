@@ -241,6 +241,32 @@ public final class AnnotatedFunctionHookEntryList {{
 """)
 PY
 
+# Embedded mode never runs the real Xposed zygote resource path.
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("telegram/TMessagesProj/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java")
+s = p.read_text()
+old = """    @Override
+    public void initZygote(StartupParam startupParam) {
+        EzXHelperInit.INSTANCE.initZygote(startupParam);
+        sModulePath = startupParam.modulePath;
+    }
+"""
+new = """    @Override
+    public void initZygote(StartupParam startupParam) {
+        // Embedded build: no separate Xposed module APK/resources exist.
+        // Keep the interface method for compatibility, but do not initialize XModuleResources.
+        if (startupParam != null) {
+            sModulePath = startupParam.modulePath;
+        }
+    }
+"""
+if old not in s:
+    raise SystemExit("HookEntry.initZygote block not found")
+p.write_text(s.replace(old, new, 1))
+PY
+
 # Remove Xposed-module-only resource injection/stub machinery: resources are already merged in this APK.
 python3 - <<'PY'
 from pathlib import Path
