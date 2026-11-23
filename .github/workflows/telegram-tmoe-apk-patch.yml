@@ -1,0 +1,235 @@
+name: Telegram 13.3.1 + TMoe integrated APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/telegram-tmoe-apk-patch.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-tmoe-apk-patch
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout helper repo
+        uses: actions/checkout@v4
+        with:
+          ref: telegram-13.2.2-tmoe-build
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android build tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDKROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDKROOT" /usr/local/lib/android -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "build-tools;36.0.0" "cmake;3.31.1"
+
+      - name: Download official Telegram APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 4 --retry-delay 2 -o Telegram.apk https://telegram.org/dl/android/apk
+          test -s Telegram.apk
+          sha256sum Telegram.apk | tee Telegram.apk.sha256
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging Telegram.apk | head -n 8 | tee telegram-badging.txt
+          grep -q "package: name='org.telegram.messenger.web'" telegram-badging.txt
+
+      - name: Clone TMoe
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git init tmoe
+          cd tmoe
+          git remote add origin https://github.com/cinit/TMoe.git
+          git fetch --depth=1 origin 25043bcd95f0d58694c046d691c921915e763aac
+          git checkout --detach FETCH_HEAD
+          git submodule update --init --recursive --depth=1
+
+      - name: Adapt TMoe for side-by-side Telegram
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          hook = Path("tmoe/app/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java")
+          s = hook.read_text()
+          needle = '            "org.telegram.messenger.web",'
+          if needle not in s:
+              raise SystemExit("TMoe Telegram package whitelist marker not found")
+          if '"org.telegram.messenger.tmo"' not in s:
+              s = s.replace(needle, needle + '\n            "org.telegram.messenger.tmo",', 1)
+          hook.write_text(s)
+
+          gradle = Path("tmoe/app/build.gradle.kts")
+          g = gradle.read_text()
+          old = 'abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")'
+          if old not in g:
+              raise SystemExit("TMoe ABI filter marker not found")
+          gradle.write_text(g.replace(old, 'abiFilters += setOf("arm64-v8a")', 1))
+          PY
+
+      - name: Build TMoe module
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd tmoe
+          chmod +x gradlew
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease
+          find app/build/outputs -type f -name '*.apk' -print
+          TM="$(find app/build/outputs -type f -name '*.apk' | head -n 1)"
+          test -n "$TM"
+          cp "$TM" ../TMoe-embedded-module.apk
+          cd ..
+          unzip -l TMoe-embedded-module.apk | grep -E 'lib/arm64-v8a|classes.*dex|AndroidManifest.xml' | head -n 30
+          sha256sum TMoe-embedded-module.apk | tee TMoe-embedded-module.apk.sha256
+
+      - name: Change Telegram package to side-by-side ID
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import zipfile, hashlib, zlib, struct
+          from pathlib import Path
+
+          src = Path("Telegram.apk")
+          dst = Path("Telegram-TMO-source.apk")
+          old = "org.telegram.messenger.web"
+          new = "org.telegram.messenger.tmo"
+          assert len(old) == len(new)
+          old8, new8 = old.encode(), new.encode()
+          old16, new16 = old.encode("utf-16le"), new.encode("utf-16le")
+
+          def fix_dex(data: bytes) -> bytes:
+              if not data.startswith(b"dex\n"):
+                  return data
+              b = bytearray(data)
+              b[12:32] = hashlib.sha1(b[32:]).digest()
+              struct.pack_into("<I", b, 8, zlib.adler32(b[12:]) & 0xffffffff)
+              return bytes(b)
+
+          changed = []
+          with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(dst, "w", allowZip64=True) as zout:
+              for info in zin.infolist():
+                  if info.is_dir():
+                      zout.writestr(info, b"")
+                      continue
+                  data = zin.read(info.filename)
+                  c8, c16 = data.count(old8), data.count(old16)
+                  if c8 or c16:
+                      data = data.replace(old8, new8).replace(old16, new16)
+                      if info.filename.endswith(".dex"):
+                          data = fix_dex(data)
+                      changed.append((info.filename, c8, c16))
+                  out = zipfile.ZipInfo(info.filename, info.date_time)
+                  out.compress_type = info.compress_type
+                  out.comment = info.comment
+                  out.extra = info.extra
+                  out.internal_attr = info.internal_attr
+                  out.external_attr = info.external_attr
+                  out.create_system = info.create_system
+                  out.create_version = info.create_version
+                  out.extract_version = info.extract_version
+                  out.flag_bits = info.flag_bits
+                  zout.writestr(out, data)
+
+          print("Patched package occurrences:")
+          for x in changed:
+              print(x)
+
+          old_hits = []
+          new_hits = []
+          with zipfile.ZipFile(dst) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"ZIP integrity failure: {bad}")
+              for info in z.infolist():
+                  if info.is_dir():
+                      continue
+                  d = z.read(info.filename)
+                  co = d.count(old8) + d.count(old16)
+                  cn = d.count(new8) + d.count(new16)
+                  if co: old_hits.append((info.filename, co))
+                  if cn: new_hits.append((info.filename, cn))
+                  if info.filename.endswith(".dex") and d.startswith(b"dex\n"):
+                      chk = struct.unpack_from("<I", d, 8)[0]
+                      if chk != (zlib.adler32(d[12:]) & 0xffffffff):
+                          raise SystemExit(f"Bad DEX checksum: {info.filename}")
+                      if d[12:32] != hashlib.sha1(d[32:]).digest():
+                          raise SystemExit(f"Bad DEX SHA1: {info.filename}")
+          print("old_hits", old_hits)
+          print("new_hits", new_hits)
+          if old_hits:
+              raise SystemExit(f"Old package remains: {old_hits}")
+          PY
+          sha256sum Telegram-TMO-source.apk | tee Telegram-TMO-source.apk.sha256
+
+      - name: Download NPatch 1.1.0
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 4 --retry-delay 2 \
+            -o npatch.jar \
+            https://github.com/7723mod/NPatch/releases/download/v1.1.0/jar-v1.1.0-857-release.jar
+          test -s npatch.jar
+          java -jar npatch.jar --help || true
+
+      - name: Embed TMoe into Telegram
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p patched
+          java -jar npatch.jar \
+            -f \
+            -o patched \
+            -l 2 \
+            --name "Telegram TMoe" \
+            -m TMoe-embedded-module.apk \
+            Telegram-TMO-source.apk
+          find patched -maxdepth 1 -type f -name '*.apk' -print
+          FINAL="$(find patched -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$FINAL"
+          cp "$FINAL" Telegram-13.3.1-TMoe-integrated-ARM64.apk
+
+      - name: Validate final APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging Telegram-13.3.1-TMoe-integrated-ARM64.apk | head -n 12 | tee final-badging.txt
+          grep -q "package: name='org.telegram.messenger.tmo'" final-badging.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs Telegram-13.3.1-TMoe-integrated-ARM64.apk | tee apksigner.txt
+          unzip -l Telegram-13.3.1-TMoe-integrated-ARM64.apk | tee final-entries.txt
+          grep -q 'assets/npatch/config.json' final-entries.txt
+          grep -q 'assets/npatch/modules/cc.ioctl.tmoe.apk' final-entries.txt
+          grep -q 'assets/npatch/so/arm64-v8a/libnpatch.so' final-entries.txt
+          sha256sum Telegram-13.3.1-TMoe-integrated-ARM64.apk | tee Telegram-13.3.1-TMoe-integrated-ARM64.apk.sha256
+
+      - name: Upload patched APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-13.3.1-TMoe-integrated-ARM64
+          path: |
+            Telegram-13.3.1-TMoe-integrated-ARM64.apk
+            Telegram-13.3.1-TMoe-integrated-ARM64.apk.sha256
+            final-badging.txt
+            apksigner.txt
+            TMoe-embedded-module.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
