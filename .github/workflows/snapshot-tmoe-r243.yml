@@ -1,0 +1,45 @@
+name: Snapshot TMoe r243 sources
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/snapshot-tmoe-r243.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact TMoe r243 commit
+        uses: actions/checkout@v6
+        with:
+          repository: cinit/TMoe
+          ref: 294eb9f748319f2d6c16952bf3045824262aab8a
+          path: TMoe-r243
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Record provenance
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd TMoe-r243
+          git rev-parse HEAD > ../TMoe-r243-COMMIT.txt
+          git status --porcelain > ../TMoe-r243-STATUS.txt
+          find app/src/main -type f | sort > ../TMoe-r243-FILES.txt
+
+      - name: Upload exact sources
+        uses: actions/upload-artifact@v7
+        with:
+          name: TMoe-r243-source
+          path: |
+            TMoe-r243/
+            TMoe-r243-COMMIT.txt
+            TMoe-r243-STATUS.txt
+            TMoe-r243-FILES.txt
+          include-hidden-files: true
+          compression-level: 6
+          retention-days: 7
