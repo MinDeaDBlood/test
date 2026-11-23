@@ -94,6 +94,7 @@ jobs:
           -keep,allowoptimization class org.telegram.messenger.StoriesController { *; }
           -keep,allowoptimization class org.telegram.messenger.UserConfig { *; }
           -keep,allowoptimization class org.telegram.messenger.UserObject { *; }
+          -keep,allowoptimization class org.telegram.messenger.Utilities { *; }
           -keep,allowoptimization class org.telegram.messenger.VideoEditedInfo { *; }
           -keep,allowoptimization class org.telegram.messenger.browser.Browser { *; }
 
