@@ -1,0 +1,30 @@
+name: Fetch JM-LSPatch v0.8
+
+on:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/fetch-jm-lspatch-v08.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: telegram-13.2.2-tmoe-build
+      - name: Download JM-LSPatch v0.8 CLI
+        shell: bash
+        run: |
+          curl -L --fail --retry 3             -o lspatch.jar             https://github.com/JingMatrix/LSPatch/releases/download/v0.8/lspatch.jar
+          sha256sum lspatch.jar
+      - name: Upload CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: JM-LSPatch-v0.8-CLI
+          path: lspatch.jar
