@@ -1,0 +1,185 @@
+name: Telegram 13.3.1 legacy-TMoe compatibility host
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/telegram-1331-legacy-tmoe-host.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-1331-legacy-tmoe-host
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout helper repo
+        uses: actions/checkout@v5
+        with:
+          ref: telegram-13.2.2-tmoe-build
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android toolchain
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDKROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDKROOT" /usr/local/lib/android -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Clone exact Telegram 13.3.1
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git init telegram
+          cd telegram
+          git remote add origin https://github.com/TelegramMessenger/Telegram-Android.git
+          git fetch --depth=1 origin 14de6e0c4bfeab46c761d20b1775de23ab16a1b2
+          git checkout --detach FETCH_HEAD
+          git submodule update --init --recursive --depth=1
+          echo "sdk.dir=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > local.properties
+
+      - name: Preserve legacy TMoe host API names
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat >> telegram/TMessagesProj/proguard-rules.pro <<'PRO'
+
+          # TMoe/TeleVIP compatibility surface recovered from ExTelegram 12.7.1.
+          # Keep names and members used reflectively by the module, while leaving
+          # the rest of Telegram available for normal R8 optimization.
+          -keep,allowoptimization class org.telegram.messenger.AccountInstance { *; }
+          -keep,allowoptimization class org.telegram.messenger.AndroidUtilities { *; }
+          -keep,allowoptimization class org.telegram.messenger.ApplicationLoader { *; }
+          -keep,allowoptimization class org.telegram.messenger.BaseController { *; }
+          -keep,allowoptimization class org.telegram.messenger.BuildVars { *; }
+          -keep,allowoptimization class org.telegram.messenger.ChatObject { *; }
+          -keep,allowoptimization class org.telegram.messenger.DownloadController { *; }
+          -keep,allowoptimization class org.telegram.messenger.Emoji { *; }
+          -keep,allowoptimization class org.telegram.messenger.Emoji$* { *; }
+          -keep,allowoptimization class org.telegram.messenger.EmojiData { *; }
+          -keep,allowoptimization class org.telegram.messenger.FileLoadOperation { *; }
+          -keep,allowoptimization class org.telegram.messenger.FileLoader { *; }
+          -keep,allowoptimization class org.telegram.messenger.FileLog { *; }
+          -keep,allowoptimization class org.telegram.messenger.FileUploadOperation { *; }
+          -keep,allowoptimization class org.telegram.messenger.ImageLocation { *; }
+          -keep,allowoptimization class org.telegram.messenger.LocaleController { *; }
+          -keep,allowoptimization class org.telegram.messenger.MediaDataController { *; }
+          -keep,allowoptimization class org.telegram.messenger.MessageObject { *; }
+          -keep,allowoptimization class org.telegram.messenger.MessagesController { *; }
+          -keep,allowoptimization class org.telegram.messenger.MessagesController$* { *; }
+          -keep,allowoptimization class org.telegram.messenger.MessagesStorage { *; }
+          -keep,allowoptimization class org.telegram.messenger.NotificationCenter { *; }
+          -keep,allowoptimization class org.telegram.messenger.NotificationsController { *; }
+          -keep,allowoptimization class org.telegram.messenger.SendMessagesHelper { *; }
+          -keep,allowoptimization class org.telegram.messenger.SendMessagesHelper$* { *; }
+          -keep,allowoptimization class org.telegram.messenger.SharedConfig { *; }
+          -keep,allowoptimization class org.telegram.messenger.StoriesController { *; }
+          -keep,allowoptimization class org.telegram.messenger.UserConfig { *; }
+          -keep,allowoptimization class org.telegram.messenger.UserObject { *; }
+          -keep,allowoptimization class org.telegram.messenger.VideoEditedInfo { *; }
+          -keep,allowoptimization class org.telegram.messenger.browser.Browser { *; }
+
+          -keep,allowoptimization class org.telegram.SQLite.** { *; }
+          -keep,allowoptimization class org.telegram.tgnet.ConnectionsManager { *; }
+          -keep,allowoptimization class org.telegram.tgnet.QuickAckDelegate { *; }
+          -keep,allowoptimization class org.telegram.tgnet.RequestDelegate { *; }
+          -keep,allowoptimization class org.telegram.tgnet.RequestDelegateTimestamp { *; }
+          -keep,allowoptimization class org.telegram.tgnet.WriteToSocketDelegate { *; }
+          -keep,allowoptimization class org.telegram.tgnet.TLObject { *; }
+          -keep,allowoptimization class org.telegram.tgnet.TLRPC$* { *; }
+          -keep,allowoptimization class org.telegram.tgnet.tl.TL_account$* { *; }
+          -keep,allowoptimization class org.telegram.tgnet.tl.TL_stories$* { *; }
+
+          -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBar { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBarLayout { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBarMenuItem { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBarMenuSubItem { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBarPopupWindow$ActionBarPopupWindowLayout { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.AlertDialog$Builder { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.BaseFragment { *; }
+          -keep,allowoptimization class org.telegram.ui.ActionBar.Theme { *; }
+
+          -keep,allowoptimization class org.telegram.ui.Adapters.DrawerLayoutAdapter { *; }
+          -keep,allowoptimization class org.telegram.ui.Adapters.MentionsAdapter { *; }
+          -keep,allowoptimization class org.telegram.ui.Cells.ChatMessageCell { *; }
+          -keep,allowoptimization class org.telegram.ui.Cells.TextSettingsCell { *; }
+          -keep,allowoptimization class org.telegram.ui.ChatActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.ChatActivity$* { *; }
+          -keep,allowoptimization class org.telegram.ui.ChatEditActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.ChatPullingDownDrawable { *; }
+          -keep,allowoptimization class org.telegram.ui.ChatUsersActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.Components.ChatActivityEnterView { *; }
+          -keep,allowoptimization class org.telegram.ui.Components.ChatGreetingsView { *; }
+          -keep,allowoptimization class org.telegram.ui.Components.SharedMediaLayout { *; }
+          -keep,allowoptimization class org.telegram.ui.Components.UniversalAdapter { *; }
+          -keep,allowoptimization class org.telegram.ui.Components.spoilers.SpoilerEffect { *; }
+          -keep,allowoptimization class org.telegram.ui.DialogsActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.LaunchActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.PhotoViewer$PhotoViewerProvider { *; }
+          -keep,allowoptimization class org.telegram.ui.ProfileActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.ProfileActivity$* { *; }
+          -keep,allowoptimization class org.telegram.ui.SecretMediaViewer { *; }
+          -keep,allowoptimization class org.telegram.ui.SettingsActivity { *; }
+          -keep,allowoptimization class org.telegram.ui.SettingsActivity$* { *; }
+          -keep,allowoptimization class org.telegram.ui.Stories.PeerStoriesView$StoryItemHolder { *; }
+          -keep,allowoptimization class org.telegram.ui.Stories.StoriesController { *; }
+          -keep,allowoptimization class org.telegram.ui.TopicsFragment { *; }
+          -keep,allowoptimization class org.telegram.ui.VoIPPermissionActivity { *; }
+          PRO
+
+      - name: Build standalone Telegram.org host
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd telegram
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :TMessagesProj_AppStandalone:assembleAfatStandalone
+
+          APK="$(find TMessagesProj_AppStandalone/build/outputs/apk -type f -name '*.apk' | head -n 1)"
+          MAP="$(find TMessagesProj_AppStandalone/build/outputs/mapping -type f -name mapping.txt | head -n 1)"
+          test -n "$APK"
+          mkdir -p ../out
+          cp "$APK" ../out/Telegram-13.3.1-TMoe-compat-host.apk
+          if [ -n "$MAP" ]; then
+            cp "$MAP" ../out/mapping.txt
+          fi
+          sha256sum ../out/Telegram-13.3.1-TMoe-compat-host.apk | tee ../out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
+
+      - name: Verify preserved API names in mapping
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [ -s out/mapping.txt ]; then
+            for C in               org.telegram.messenger.ApplicationLoader               org.telegram.messenger.MessageObject               org.telegram.messenger.MessagesController               org.telegram.messenger.UserConfig               org.telegram.messenger.SharedConfig               org.telegram.ui.ActionBar.Theme               org.telegram.ui.ActionBar.BaseFragment               org.telegram.ui.ChatActivity               org.telegram.ui.Cells.ChatMessageCell               org.telegram.ui.Stories.StoriesController; do
+              grep -E "^$C -> $C:$" out/mapping.txt || {
+                echo "NOT PRESERVED: $C"
+                grep -E "^$C -> " out/mapping.txt || true
+                exit 1
+              }
+            done
+          fi
+
+      - name: Upload host
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-13.3.1-TMoe-compat-host
+          path: |
+            out/Telegram-13.3.1-TMoe-compat-host.apk
+            out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
+            out/mapping.txt
+          if-no-files-found: error
+          retention-days: 30
