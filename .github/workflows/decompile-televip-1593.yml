@@ -33,7 +33,12 @@ jobs:
           unzip -q jadx.zip -d jadx
           chmod +x jadx/bin/jadx
           mkdir -p out
+          set +e
           jadx/bin/jadx --no-res --show-bad-code -d out televip.apk
+          JRC=$?
+          set -e
+          echo "jadx_exit=$JRC"
+          test -d out/sources
           find out/sources -type f | sort > out/files.txt
           tar -czf TeleVip-1.5.93-jadx-sources.tar.gz -C out sources files.txt
 
