@@ -2,6 +2,7 @@ package cc.ioctl.tmoe.hook.core;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.os.Bundle;
 import android.view.View;
 
 import java.lang.reflect.Field;
@@ -69,6 +70,7 @@ public final class Telegram1331CompatHooks implements Initializable {
             installInstantCamera();
             installChatGreetings();
             installSendCommandGuard();
+            installTopicMode();
             installStoriesHooks();
             installSponsoredAndChatHooks();
             installStickerHooks();
@@ -352,6 +354,42 @@ public final class Telegram1331CompatHooks implements Initializable {
         yesterday.add(Calendar.DAY_OF_YEAR, -1);
         return target.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR)
                 && target.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR);
+    }
+
+
+    private static void installTopicMode() {
+        try {
+            final Class<?> dialogs = host("org.telegram.ui.DialogsActivity");
+            final Class<?> base = host("org.telegram.ui.ActionBar.BaseFragment");
+            final Class<?> topics = host("org.telegram.ui.TopicsFragment");
+            final Class<?> chat = host("org.telegram.ui.ChatActivity");
+            final Method getArguments = base.getMethod("getArguments");
+            final Method present = dialogs.getDeclaredMethod("presentFragment", base);
+            present.setAccessible(true);
+            final java.lang.reflect.Constructor<?> chatCtor = chat.getConstructor(Bundle.class);
+            hook(present, new XC_MethodHook(16000) {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    if (!enabled("ViewTopicAsMsgByDefault") || p.args.length == 0) return;
+                    Object fragment = p.args[0];
+                    if (fragment == null || fragment.getClass() != topics) return;
+                    try {
+                        Bundle args = (Bundle) getArguments.invoke(fragment);
+                        if (args == null
+                                || args.getBoolean("forward_to", false)
+                                || args.getBoolean("for_select", false)) return;
+                        long chatId = args.getLong("chat_id", 0L);
+                        if (chatId == 0L) return;
+                        Bundle replacement = new Bundle();
+                        replacement.putLong("chat_id", chatId);
+                        p.args[0] = chatCtor.newInstance(replacement);
+                    } catch (Throwable e) {
+                        Utils.loge(e);
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
     }
 
     private static void installStoriesHooks() throws Exception {
