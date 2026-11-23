@@ -107,6 +107,7 @@ jobs:
           -keep,allowoptimization class org.telegram.tgnet.TLRPC$* { *; }
           -keep,allowoptimization class org.telegram.tgnet.tl.TL_account$* { *; }
           -keep,allowoptimization class org.telegram.tgnet.tl.TL_stories$* { *; }
+          -keep,allowoptimization class org.telegram.tgnet.tl.TL_update$* { *; }
 
           -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBar { *; }
           -keep,allowoptimization class org.telegram.ui.ActionBar.ActionBarLayout { *; }
