@@ -2,6 +2,7 @@ package cc.ioctl.tmoe.base;
 
 import android.app.Application;
 
+import cc.ioctl.tmoe.compat.Telegram13ClassResolver;
 import cc.ioctl.tmoe.hook.func.DatabaseCorruptionWarning;
 import cc.ioctl.tmoe.lifecycle.Parasitics;
 import cc.ioctl.tmoe.rtti.ProxyFragmentRttiHandler;
@@ -48,6 +49,11 @@ public class MainStartInit {
             } catch (Throwable e) {
                 Utils.loge(e);
             }
+
+            // Resolve the R8 host-class graph before legacy hooks initialize.
+            // This is structural (ProfileActivity/ChatActivityEnterView/BaseFragment getters)
+            // and therefore does not depend on short R8 names.
+            Telegram13ClassResolver.warmUp();
 
             // Always load functional/core hooks even if the old fragment RTTI layer failed.
             DynamicHookInit.loadHooks();
