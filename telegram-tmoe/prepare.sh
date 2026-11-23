@@ -398,4 +398,8 @@ cat >> "$TG/TMessagesProj/proguard-rules.pro" <<'PRO'
 -keep class cc.ioctl.tmoe.** { *; }
 -keep class de.robv.android.xposed.** { *; }
 -keep class top.canyie.pine.** { *; }
+
+# EzXHelper contains optional real-Xposed zygote resource support. Embedded TMoe does not call it.
+-dontwarn android.content.res.XModuleResources
+-dontwarn android.content.res.XResources
 PRO
