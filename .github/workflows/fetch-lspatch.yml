@@ -18,15 +18,15 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: telegram-13.2.2-tmoe-build
-      - name: Download LSPatch 0.6 CLI
+      - name: Download JingMatrix LSPatch 0.8 CLI
         shell: bash
         run: |
           curl -L --fail --retry 3 \
-            -o jar-v0.6-398-release.jar \
-            https://github.com/LSPosed/LSPatch/releases/download/v0.6/jar-v0.6-398-release.jar
-          sha256sum jar-v0.6-398-release.jar
+            -o lspatch-v0.8.jar \
+            https://github.com/LSPosed/LSPatch/releases/download/v0.6/lspatch-v0.8.jar
+          sha256sum lspatch-v0.8.jar
       - name: Upload LSPatch CLI
         uses: actions/upload-artifact@v4
         with:
-          name: LSPatch-v0.6-CLI
-          path: jar-v0.6-398-release.jar
+          name: JingMatrix-LSPatch-v0.8-CLI
+          path: lspatch-v0.8.jar
