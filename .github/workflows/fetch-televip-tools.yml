@@ -37,6 +37,10 @@ jobs:
           echo "dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423  out/apktool_3.0.3.jar" | sha256sum -c -
           java -jar out/lspatch-v1.2-487-release.jar --help | head -80 | tee out/lspatch-help.txt
           java -jar out/apktool_3.0.3.jar --version | tee out/apktool-version.txt
+          curl -L --fail --retry 3 \\
+            -o out/jadx-1.5.7.zip \\
+            https://github.com/skylot/jadx/releases/download/v1.5.7/jadx-1.5.7.zip
+          echo "1755e4242ade71a077438723689f404079592ec7764a3a0572f98fef94ebcbf3  out/jadx-1.5.7.zip" | sha256sum -c -
 
       - name: Upload tools
         uses: actions/upload-artifact@v4
