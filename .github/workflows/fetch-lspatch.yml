@@ -1,0 +1,32 @@
+name: Fetch LSPatch CLI
+
+on:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/fetch-lspatch.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: telegram-13.2.2-tmoe-build
+      - name: Download LSPatch 0.6 CLI
+        shell: bash
+        run: |
+          curl -L --fail --retry 3 \
+            -o jar-v0.6-398-release.jar \
+            https://github.com/LSPosed/LSPatch/releases/download/v0.6/jar-v0.6-398-release.jar
+          sha256sum jar-v0.6-398-release.jar
+      - name: Upload LSPatch CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: LSPatch-v0.6-CLI
+          path: jar-v0.6-398-release.jar
