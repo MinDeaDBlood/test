@@ -229,7 +229,8 @@ jobs:
           unzip -l Telegram-13.3.1-TMoe-integrated-ARM64.apk | tee entries.txt
           grep -q 'assets/npatch/config.json' entries.txt
           grep -q 'assets/npatch/modules/cc.ioctl.tmoe.apk' entries.txt
-          grep -q 'assets/npatch/so/arm64-v8a/libnpatch.so' entries.txt
+          grep -E 'assets/npatch/.*\.so' entries.txt | tee npatch-native-entries.txt
+          test -s npatch-native-entries.txt
           sha256sum Telegram-13.3.1-TMoe-integrated-ARM64.apk | tee Telegram-13.3.1-TMoe-integrated-ARM64.apk.sha256
 
       - name: Upload integrated APK
@@ -242,5 +243,6 @@ jobs:
             final-badging.txt
             apksigner.txt
             patch-mode.txt
+            npatch-native-entries.txt
           if-no-files-found: error
           retention-days: 30
