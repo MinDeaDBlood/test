@@ -1,0 +1,67 @@
+name: Build portable REA Android toolchain
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-rea-portable.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node 24.11.1
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.11.1'
+
+      - name: Build portable toolchain
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="$PWD/rea-portable"
+          mkdir -p "$ROOT/node/bin" "$ROOT/rea" "$ROOT/providers" "$ROOT/bin"
+
+          cp "$(command -v node)" "$ROOT/node/bin/node"
+
+          npm install --prefix "$ROOT/rea" --omit=dev --no-audit --no-fund rea-agents@6.10.1
+
+          curl -fL --retry 5             -o "$ROOT/providers/jadx-headless-mcp-0.8.0-all.jar"             https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.8.0/jadx-headless-mcp-0.8.0-all.jar
+          echo "4b9a01c23845c123c217840182d2b5f2c26a7ca20dec3d08810b310fc80a2372  $ROOT/providers/jadx-headless-mcp-0.8.0-all.jar" | sha256sum -c -
+
+          curl -fL --retry 5             -o "$ROOT/providers/apktool_3.0.3.jar"             https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar
+
+          cat > "$ROOT/bin/rea" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+          export PATH="$HERE/node/bin:$PATH"
+          export REA_JADX_MCP_JAR="$HERE/providers/jadx-headless-mcp-0.8.0-all.jar"
+          export REA_APKTOOL_COMMAND="$HERE/bin/apktool"
+          exec "$HERE/node/bin/node" "$HERE/rea/node_modules/rea-agents/scripts/rea.mjs" "$@"
+          EOF
+
+          cat > "$ROOT/bin/apktool" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+          exec java -jar "$HERE/providers/apktool_3.0.3.jar" "$@"
+          EOF
+          chmod +x "$ROOT/bin/rea" "$ROOT/bin/apktool"
+
+          "$ROOT/bin/rea" --version
+          "$ROOT/bin/apktool" --version
+          "$ROOT/bin/rea" doctor --provider jadx --json > "$ROOT/doctor-jadx.json" || true
+          "$ROOT/bin/rea" doctor --provider apktool --json > "$ROOT/doctor-apktool.json" || true
+          du -sh "$ROOT"
+
+      - name: Upload portable REA toolchain
+        uses: actions/upload-artifact@v7
+        with:
+          name: rea-android-portable
+          path: rea-portable/
+          compression-level: 6
+          retention-days: 7
