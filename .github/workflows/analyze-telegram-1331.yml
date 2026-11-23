@@ -1,4 +1,4 @@
-name: Analyze Telegram 13.3.1 settings
+name: Analyze Telegram 13.3.1 runtime classes
 
 on:
   push:
@@ -22,8 +22,9 @@ jobs:
       - name: Download current Telegram APK
         shell: bash
         run: |
+          set -euxo pipefail
           curl -L --fail --retry 3 -o Telegram.apk https://telegram.org/dl/android/apk
-          sha256sum Telegram.apk
+          sha256sum Telegram.apk | tee out-sha256.txt
           ls -lh Telegram.apk
 
       - name: Download JADX
@@ -34,30 +35,49 @@ jobs:
           unzip -q jadx.zip -d jadx
           chmod +x jadx/bin/jadx
 
-      - name: Decompile candidate settings classes
+      - name: Decompile Telegram 13.3.1 compatibility anchors
         shell: bash
         run: |
+          set -euxo pipefail
           mkdir -p out
-          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.y41 --single-class-output out/SettingsCandidate.java Telegram.apk || true
-          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.ProfileActivity --single-class-output out/ProfileActivity.java Telegram.apk || true
-          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.u41 --single-class-output out/SettingCellFactory.java Telegram.apk || true
-          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.Components.j51 --single-class-output out/UItem.java Telegram.apk || true
-          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.b5 --single-class-output out/FillCallback.java Telegram.apk || true
-          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.p41 --single-class-output out/ClickCallback.java Telegram.apk || true
-          echo "===== Settings candidate ====="
-          sed -n '1,1400p' out/SettingsCandidate.java || true
-          echo "===== Profile hooks ====="
-          grep -nE "createView|language|PowerUsage|TelegramPremium|Stars|UniversalRecycler|fillItems|onClick" out/ProfileActivity.java | head -300 || true
-          echo "===== SettingCell factory ====="
-          cat out/SettingCellFactory.java || true
-          echo "===== UItem factories ====="
-          grep -nE "static .* (C|u|r|i)\(" out/UItem.java | head -120 || true
-          echo "===== callbacks ====="
-          cat out/FillCallback.java || true
-          cat out/ClickCallback.java || true
+          cp out-sha256.txt out/telegram-apk.sha256
+
+          declare -A CLASSES=(
+            [ApplicationLoaderImpl]='org.telegram.messenger.ApplicationLoaderImpl'
+            [FileLoadOperation]='org.telegram.messenger.d7'
+            [FileUploadOperation]='org.telegram.messenger.o8'
+            [DownloadController]='org.telegram.messenger.r5'
+            [SharedConfig]='org.telegram.messenger.rz'
+            [LocaleController]='org.telegram.messenger.dd'
+            [MessageObject]='org.telegram.messenger.fj'
+            [UserConfig]='org.telegram.messenger.a20'
+            [MessagesController]='org.telegram.messenger.pp'
+            [MessagesStorage]='org.telegram.messenger.as'
+            [NotificationsController]='org.telegram.messenger.ft'
+            [NotificationCenter]='org.telegram.messenger.ss'
+            [BaseFragment]='org.telegram.ui.ActionBar.j2'
+            [Theme]='org.telegram.ui.ActionBar.z4'
+            [ChatActivity]='org.telegram.ui.on'
+            [DialogsActivity]='org.telegram.ui.qx'
+            [SettingsActivity]='org.telegram.ui.y41'
+            [ChatMessageCell]='org.telegram.ui.Cells.q1'
+            [ChatActivityEnterView]='org.telegram.ui.Components.ChatActivityEnterView'
+            [StoriesControllerCandidate]='bh.b9'
+            [StoriesControllerLogCandidate]='bh.r7'
+          )
+
+          for label in "${!CLASSES[@]}"; do
+            clazz="${CLASSES[$label]}"
+            echo "=== $label = $clazz ==="
+            jadx/bin/jadx --log-level ERROR --single-class "$clazz" --single-class-output "out/$label.java" Telegram.apk || true
+          done
+
+          grep -nE "markStoryAsRead|hasStories|completeReadTask|premiumFeaturesBlocked|isPremium|hasPremiumOnAccounts|getCurrentUser|hasUnviewedDownloads|formatShortNumber|formatDateOnline|canBlurChat|canForwardMessage|isSecretMedia|isPremiumSticker|hasMediaSpoilers|updateParams|startUploadRequest|maybePlayVisibleVideo|logSponsoredClicked|selectReaction|createMenu|setCommand|isInVideoMode|hasRecordVideo|measureTime|removeDeletedMessagesFromNotifications|markMessagesAsDeleted|updateDialogsWithDeletedMessages|postNotificationName" out/*.java > out/focused-methods.txt || true
 
       - name: Upload analysis
         uses: actions/upload-artifact@v4
         with:
-          name: Telegram-13.3.1-settings-analysis
+          name: Telegram-13.3.1-runtime-analysis
           path: out/
+          if-no-files-found: error
+          retention-days: 30
