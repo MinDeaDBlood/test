@@ -1,0 +1,60 @@
+name: Build TMoe module APK
+
+on:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/build-tmoe-module.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout helper workflow
+        uses: actions/checkout@v5
+        with:
+          ref: telegram-13.2.2-tmoe-build
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Clone TMoe
+        shell: bash
+        run: |
+          git init tmoe
+          cd tmoe
+          git remote add origin https://github.com/cinit/TMoe.git
+          git fetch --depth=1 origin 25043bcd95f0d58694c046d691c921915e763aac
+          git checkout --detach FETCH_HEAD
+          git submodule update --init --recursive --depth=1
+
+      - name: Configure Android SDK
+        shell: bash
+        run: |
+          SDKROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDKROOT" /usr/local/lib/android -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "cmake;3.31.1"
+          echo "sdk.dir=$SDKROOT" > tmoe/local.properties
+
+      - name: Build TMoe debug module
+        shell: bash
+        run: |
+          cd tmoe
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Upload TMoe APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMoe-module-debug
+          path: tmoe/app/build/outputs/apk/debug/*.apk
