@@ -9,6 +9,7 @@ on:
       - "telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py"
       - "telegram-tmoe/SettingEntryHook-13.3.1.java"
       - "telegram-tmoe/HostDexClassScanner.java"
+      - "telegram-tmoe/Telegram13ClassResolver.java"
       - "telegram-tmoe/NativeSettingsDialog.java"
       - "telegram-tmoe/Theme-13.3.1.java"
       - "telegram-tmoe/MainStartInit-13.3.1.java"
@@ -50,6 +51,8 @@ jobs:
           set -euxo pipefail
           cp telegram-tmoe/SettingEntryHook-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
           cp telegram-tmoe/HostDexClassScanner.java tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
+          mkdir -p tmoe/app/src/main/java/cc/ioctl/tmoe/compat
+          cp telegram-tmoe/Telegram13ClassResolver.java tmoe/app/src/main/java/cc/ioctl/tmoe/compat/Telegram13ClassResolver.java
           cp telegram-tmoe/NativeSettingsDialog.java tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
           cp telegram-tmoe/Theme-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
           cp telegram-tmoe/MainStartInit-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
@@ -58,6 +61,7 @@ jobs:
 
           grep -q 'HostDexClassScanner' tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
           grep -q 'allClassesWithPrefix' tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
+          grep -q 'getParentFragment' tmoe/app/src/main/java/cc/ioctl/tmoe/compat/Telegram13ClassResolver.java
           grep -q 'Telegram 13 Theme resolved by method shape' tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
           grep -q 'makeSectionRowBackground' tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
           grep -q 'proxy fragment unavailable' tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
