@@ -11,6 +11,8 @@ on:
       - "telegram-tmoe/HostDexClassScanner.java"
       - "telegram-tmoe/NativeSettingsDialog.java"
       - "telegram-tmoe/MainStartInit-13.3.1.java"
+      - "telegram-tmoe/Telegram13Bootstrap.java"
+      - "telegram-tmoe/HookEntry-13.3.1.java"
   workflow_dispatch:
 
 permissions:
@@ -49,9 +51,13 @@ jobs:
           cp telegram-tmoe/HostDexClassScanner.java             tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
           cp telegram-tmoe/NativeSettingsDialog.java             tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
           cp telegram-tmoe/MainStartInit-13.3.1.java             tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
+          cp telegram-tmoe/Telegram13Bootstrap.java             tmoe/app/src/main/java/cc/ioctl/tmoe/startup/Telegram13Bootstrap.java
+          cp telegram-tmoe/HookEntry-13.3.1.java             tmoe/app/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java
           grep -q 'HostDexClassScanner'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
           grep -q 'NativeSettingsDialog'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
           grep -q 'proxy fragment unavailable'             tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
+          grep -q 'Telegram13Bootstrap.install'             tmoe/app/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java
+          grep -q 'TMoe bootstrap'             tmoe/app/src/main/java/cc/ioctl/tmoe/startup/Telegram13Bootstrap.java
 
       - name: Configure Android SDK
         shell: bash
@@ -73,5 +79,5 @@ jobs:
       - name: Upload TMoe APK
         uses: actions/upload-artifact@v4
         with:
-          name: TMoe-module-telegram-13.3.1-r8-resilient
+          name: TMoe-module-telegram-13.3.1-bootstrap-diag
           path: tmoe/app/build/outputs/apk/debug/*.apk
