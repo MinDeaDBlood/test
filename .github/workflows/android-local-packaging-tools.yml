@@ -1,0 +1,56 @@
+name: Android local packaging tools
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/android-local-packaging-tools.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tools:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install apksigner and fetch NPatch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDKROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDKROOT" /usr/local/lib/android -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "build-tools;36.0.0"
+
+          mkdir -p out
+          cp "$SDKROOT/build-tools/36.0.0/lib/apksigner.jar" out/apksigner.jar
+          curl -fL --retry 4 --retry-delay 2             -o out/npatch.jar             https://github.com/7723mod/NPatch/releases/download/v1.1.0/jar-v1.1.0-857-release.jar
+
+          # Public AOSP test key; used only to preserve the certificate of the
+          # existing diagnostic build so Android accepts an in-place update.
+          curl -fL --retry 4             'https://android.googlesource.com/platform/build/+/refs/tags/android-11.0.0_r29/target/product/security/testkey.pk8?format=TEXT'             | base64 -d > out/testkey.pk8
+          curl -fL --retry 4             'https://android.googlesource.com/platform/build/+/refs/tags/android-11.0.0_r29/target/product/security/testkey.x509.pem?format=TEXT'             | base64 -d > out/testkey.x509.pem
+
+          test -s out/apksigner.jar
+          test -s out/npatch.jar
+          test -s out/testkey.pk8
+          test -s out/testkey.x509.pem
+          sha256sum out/* | tee out/SHA256SUMS.txt
+          openssl x509 -in out/testkey.x509.pem -noout -fingerprint -sha256 | tee out/testkey-cert-sha256.txt
+
+      - name: Upload tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-local-packaging-tools
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
