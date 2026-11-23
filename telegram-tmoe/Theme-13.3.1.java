@@ -22,10 +22,12 @@ import android.util.StateSet;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
-import java.util.Random;
 
 import cc.ioctl.tmoe.rtti.deobf.ClassLocator;
+import cc.ioctl.tmoe.util.HostDexClassScanner;
+import cc.ioctl.tmoe.util.Initiator;
 import cc.ioctl.tmoe.util.Utils;
 
 public class Theme {
