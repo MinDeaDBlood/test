@@ -5,6 +5,7 @@ import com.github.kyuubiran.ezxhelper.init.EzXHelperInit;
 import java.util.List;
 
 import cc.ioctl.tmoe.R;
+import cc.ioctl.tmoe.util.Telegram13ClassLoader;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XposedBridge;
@@ -66,16 +67,20 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
             return;
         }
 
-        // Telegram Web 13.x uses an independent bootstrap so a failure in the
-        // legacy NativeLoader/ProxyFragment startup path cannot silently prevent
-        // all later TMoe hooks.
+        // Initialize EzXHelper before functional hooks are installed. For the
+        // telegram.org R8 build replace its host loader with our compatibility
+        // loader, so old TMoe source names resolve to the real 13.3.1 classes.
+        EzXHelperInit.INSTANCE.initHandleLoadPackage(lpparam);
         if ("org.telegram.messenger.web".equals(packageName)) {
+            Telegram13ClassLoader compat =
+                    Telegram13ClassLoader.getOrCreate(lpparam.classLoader);
+            EzXHelperInit.INSTANCE.setEzClassLoader(compat);
+            XposedBridge.log("TMoe: installed Telegram 13 compatibility ClassLoader");
             Telegram13Bootstrap.install(lpparam);
         } else {
             StartupHook.INSTANCE.doInit(lpparam.classLoader);
         }
 
-        EzXHelperInit.INSTANCE.initHandleLoadPackage(lpparam);
         EzXHelperInit.INSTANCE.setLogTag("TMoe");
     }
 
