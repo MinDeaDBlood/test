@@ -7,9 +7,13 @@ on:
     paths:
       - ".github/workflows/build-tmoe-module.yml"
       - "telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py"
+      - "telegram-tmoe/patch-tmoe-modern-compat.py"
       - "telegram-tmoe/SettingEntryHook-13.3.1.java"
       - "telegram-tmoe/HostDexClassScanner.java"
       - "telegram-tmoe/Telegram13ClassResolver.java"
+      - "telegram-tmoe/Initiator-13.3.1.java"
+      - "telegram-tmoe/Telegram1331CompatHooks.java"
+      - "telegram-tmoe/LegacyCompatToggles.kt"
       - "telegram-tmoe/NativeSettingsDialog.java"
       - "telegram-tmoe/Theme-13.3.1.java"
       - "telegram-tmoe/MainStartInit-13.3.1.java"
@@ -45,26 +49,33 @@ jobs:
           git checkout --detach FETCH_HEAD
           git submodule update --init --recursive --depth=1
 
-      - name: Install Telegram 13.3.1 resilient TMoe integration
+      - name: Install Telegram 13.3.1 TMoe compatibility layer
         shell: bash
         run: |
           set -euxo pipefail
           cp telegram-tmoe/SettingEntryHook-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
           cp telegram-tmoe/HostDexClassScanner.java tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
+          cp telegram-tmoe/Initiator-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/util/Initiator.java
+
           mkdir -p tmoe/app/src/main/java/cc/ioctl/tmoe/compat
           cp telegram-tmoe/Telegram13ClassResolver.java tmoe/app/src/main/java/cc/ioctl/tmoe/compat/Telegram13ClassResolver.java
+
+          cp telegram-tmoe/Telegram1331CompatHooks.java tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/Telegram1331CompatHooks.java
+          cp telegram-tmoe/LegacyCompatToggles.kt tmoe/app/src/main/java/cc/ioctl/tmoe/hook/func/LegacyCompatToggles.kt
+
           cp telegram-tmoe/NativeSettingsDialog.java tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
           cp telegram-tmoe/Theme-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
           cp telegram-tmoe/MainStartInit-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
           cp telegram-tmoe/Telegram13Bootstrap.java tmoe/app/src/main/java/cc/ioctl/tmoe/startup/Telegram13Bootstrap.java
           cp telegram-tmoe/HookEntry-13.3.1.java tmoe/app/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java
 
-          grep -q 'HostDexClassScanner' tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
-          grep -q 'allClassesWithPrefix' tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
-          grep -q 'getParentFragment' tmoe/app/src/main/java/cc/ioctl/tmoe/compat/Telegram13ClassResolver.java
-          grep -q 'Telegram 13 Theme resolved structurally' tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
-          grep -q 'makeSectionRowBackground' tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
-          grep -q 'proxy fragment unavailable' tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
+          python3 telegram-tmoe/patch-tmoe-modern-compat.py
+
+          grep -q 'Telegram1331CompatHooks.INSTANCE.initialize' tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
+          grep -q 'object AntiRecall' tmoe/app/src/main/java/cc/ioctl/tmoe/hook/func/LegacyCompatToggles.kt
+          grep -q 'FakePremium' tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/SettingsFragment.kt
+          grep -q 'org.telegram.ui.ActionBar.r6' tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
+          grep -q 'org.telegram.ui.ActionBar.z4' tmoe/app/src/main/java/cc/ioctl/tmoe/ui/Theme.java
           grep -q 'Telegram13Bootstrap.install' tmoe/app/src/main/java/cc/ioctl/tmoe/startup/HookEntry.java
           grep -q 'TMoe bootstrap' tmoe/app/src/main/java/cc/ioctl/tmoe/startup/Telegram13Bootstrap.java
 
@@ -88,5 +99,5 @@ jobs:
       - name: Upload TMoe APK
         uses: actions/upload-artifact@v4
         with:
-          name: TMoe-module-telegram-13.3.1-bootstrap-diag
+          name: TMoe-module-telegram-13.3.1-modern
           path: tmoe/app/build/outputs/apk/debug/*.apk
