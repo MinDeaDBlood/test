@@ -1,7 +1,15 @@
 package cc.ioctl.tmoe.hook.core;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.view.View;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -46,6 +54,9 @@ public final class Telegram1331CompatHooks implements Initializable {
         if ("EnableDebugMode".equals(key) && value) {
             applyDebugFlags();
         }
+        if ("DisableInstantCamera".equals(key)) {
+            applyInstantCameraPreference(value);
+        }
     }
 
     @Override
@@ -54,6 +65,10 @@ public final class Telegram1331CompatHooks implements Initializable {
         try {
             installMessageObjectHooks();
             installUserAndConfigHooks();
+            installExactLastSeen();
+            installInstantCamera();
+            installChatGreetings();
+            installSendCommandGuard();
             installStoriesHooks();
             installSponsoredAndChatHooks();
             installStickerHooks();
@@ -169,6 +184,176 @@ public final class Telegram1331CompatHooks implements Initializable {
         });
     }
 
+
+    private static void installExactLastSeen() {
+        try {
+            final Class<?> locale = host("org.telegram.messenger.LocaleController");
+            hook(exact(locale, "w", long.class, boolean[].class), new XC_MethodHook(12000) {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    if (!enabled("ShowExactLastSeenTime")) return;
+                    long seconds = (Long) p.args[0];
+                    if (seconds <= 0) return;
+                    long millis = seconds * 1000L;
+                    Locale loc = Locale.getDefault();
+                    SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss", loc);
+                    SimpleDateFormat dateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", loc);
+                    String lastSeen = hostString("LastSeenFormatted", "last seen %s");
+                    String yesterdayAt = hostString("YesterdayAtFormatted", "yesterday at %s");
+                    String lastSeenDate = hostString("LastSeenDateFormatted", "last seen %s");
+                    if (isSameDay(millis, System.currentTimeMillis())) {
+                        p.setResult(String.format(loc, lastSeen, time.format(new Date(millis))));
+                    } else if (isYesterday(millis)) {
+                        boolean[] shorter = (boolean[]) p.args[1];
+                        if (shorter != null && shorter.length > 0) {
+                            shorter[0] = true;
+                            p.setResult(String.format(loc, yesterdayAt, time.format(new Date(millis))));
+                        } else {
+                            p.setResult(String.format(loc, lastSeen,
+                                    String.format(loc, yesterdayAt, time.format(new Date(millis)))));
+                        }
+                    } else {
+                        p.setResult(String.format(loc, lastSeenDate, dateTime.format(new Date(millis))));
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
+    }
+
+    private static Boolean sOriginalInappCamera;
+
+    private static void applyInstantCameraPreference(boolean disabled) {
+        try {
+            Class<?> shared = host("org.telegram.messenger.SharedConfig");
+            Field inapp = shared.getDeclaredField("f22639y0");
+            inapp.setAccessible(true);
+            if (sOriginalInappCamera == null) sOriginalInappCamera = inapp.getBoolean(null);
+            inapp.setBoolean(null, disabled ? false : sOriginalInappCamera);
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
+    }
+
+    private static void installInstantCamera() {
+        try {
+            applyInstantCameraPreference(enabled("DisableInstantCamera"));
+            final Class<?> enter = host("org.telegram.ui.Components.ChatActivityEnterView");
+            // isInVideoMode()
+            hook(exact(enter, "R0"), new XC_MethodHook(15000) {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    if (enabled("DisableInstantCamera")) p.setResult(false);
+                }
+            });
+            // checkRoundVideo(): force both state and UI back to voice mode.
+            hook(exact(enter, "N"), new XC_MethodHook(-15000) {
+                @Override protected void afterHookedMethod(MethodHookParam p) {
+                    if (!enabled("DisableInstantCamera")) return;
+                    try {
+                        Field hasRecordVideo = enter.getDeclaredField("U2");
+                        hasRecordVideo.setAccessible(true);
+                        hasRecordVideo.setBoolean(p.thisObject, false);
+                        exact(enter, "N1", boolean.class, boolean.class)
+                                .invoke(p.thisObject, false, false);
+                    } catch (Throwable e) {
+                        Utils.loge(e);
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
+    }
+
+    private static void installChatGreetings() {
+        try {
+            final Class<?> greetings = host("org.telegram.ui.Components.ChatGreetingsView");
+            for (Method m : greetings.getDeclaredMethods()) {
+                if ("setSticker".equals(m.getName()) || "setListener".equals(m.getName())) {
+                    hook(m, new XC_MethodHook(15000) {
+                        @Override protected void beforeHookedMethod(MethodHookParam p) {
+                            if (enabled("ProhibitChatGreetings")) p.setResult(null);
+                        }
+                    });
+                }
+            }
+            hook(exact(greetings, "onMeasure", int.class, int.class), new XC_MethodHook(-15000) {
+                @Override protected void afterHookedMethod(MethodHookParam p) {
+                    if (enabled("ProhibitChatGreetings") && p.thisObject instanceof View) {
+                        ((View) p.thisObject).setVisibility(View.GONE);
+                    }
+                }
+            });
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
+    }
+
+    private static void installSendCommandGuard() {
+        try {
+            final Class<?> enter = host("org.telegram.ui.Components.ChatActivityEnterView");
+            final Class<?> messageObject = host("org.telegram.messenger.MessageObject");
+            final Method setCommand = exact(enter, "C1",
+                    messageObject, String.class, boolean.class, boolean.class);
+            hook(setCommand, new XC_MethodHook(16000) {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    if (!enabled("SendCommand")) return;
+                    String command = (String) p.args[1];
+                    boolean longPress = (Boolean) p.args[2];
+                    if (longPress || command == null || !command.startsWith("/")) return;
+                    Context context = p.thisObject instanceof View
+                            ? ((View) p.thisObject).getContext() : HostInfo.getApplication();
+                    if (context == null) return;
+                    final Object receiver = p.thisObject;
+                    final Object[] args = p.args.clone();
+                    new AlertDialog.Builder(context)
+                            .setMessage("Отправить команду " + command + "?")
+                            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                                try {
+                                    XposedBridge.invokeOriginalMethod(setCommand, receiver, args);
+                                } catch (Throwable e) {
+                                    Utils.loge(e);
+                                }
+                            })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
+                    p.setResult(null);
+                }
+            });
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
+    }
+
+    private static String hostString(String name, String fallback) {
+        try {
+            Context c = HostInfo.getApplication();
+            if (c == null) return fallback;
+            int id = c.getResources().getIdentifier(name, "string", c.getPackageName());
+            return id == 0 ? fallback : c.getString(id);
+        } catch (Throwable ignored) {
+            return fallback;
+        }
+    }
+
+    private static boolean isSameDay(long a, long b) {
+        Calendar x = Calendar.getInstance();
+        x.setTimeInMillis(a);
+        int y = x.get(Calendar.YEAR);
+        int d = x.get(Calendar.DAY_OF_YEAR);
+        x.setTimeInMillis(b);
+        return y == x.get(Calendar.YEAR) && d == x.get(Calendar.DAY_OF_YEAR);
+    }
+
+    private static boolean isYesterday(long value) {
+        Calendar target = Calendar.getInstance();
+        target.setTimeInMillis(value);
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.DAY_OF_YEAR, -1);
+        return target.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR)
+                && target.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR);
+    }
+
     private static void installStoriesHooks() throws Exception {
         final Class<?> stories = host("org.telegram.ui.Stories.StoriesController");
         hook(exact(stories, "I"), new XC_MethodHook(10000) {
@@ -267,9 +452,31 @@ public final class Telegram1331CompatHooks implements Initializable {
                     || pt.length == 0 || !"org.telegram.tgnet.TLObject".equals(pt[0].getName())) continue;
             hook(m, new XC_MethodHook(20000) {
                 @Override protected void beforeHookedMethod(MethodHookParam p) {
-                    if (!enabled("GhostMode")) return;
                     Object req = p.args[0];
-                    if (req != null && blocked.contains(req.getClass().getName())) p.setResult(0);
+                    if (req == null) return;
+                    String n = req.getClass().getName();
+
+                    if (enabled("HideSponsoredMsg")
+                            && (n.endsWith("$TL_messages_getSponsoredMessages")
+                            || n.endsWith("$TL_contacts_getSponsoredPeers"))) {
+                        p.setResult(0);
+                        return;
+                    }
+                    if (enabled("FuckTrackingHook")
+                            && (n.endsWith("$TL_messages_clickSponsoredMessage")
+                            || n.endsWith("$TL_messages_viewSponsoredMessage")
+                            || n.endsWith("$TL_messages_reportSponsoredMessage"))) {
+                        p.setResult(0);
+                        return;
+                    }
+                    if (enabled("ProhibitEnableReactions")
+                            && (n.endsWith("$TL_messages_sendReaction")
+                            || n.endsWith("$TL_messages_sendPaidReaction")
+                            || n.endsWith("$TL_stories_sendReaction"))) {
+                        p.setResult(0);
+                        return;
+                    }
+                    if (enabled("GhostMode") && blocked.contains(n)) p.setResult(0);
                 }
             });
         }
@@ -316,6 +523,16 @@ public final class Telegram1331CompatHooks implements Initializable {
     }
 
     private static void installDownloadsUiHooks() {
+        try {
+            final Class<?> dc = host("org.telegram.messenger.DownloadController");
+            hook(exact(dc, "f"), new XC_MethodHook(15000) {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    if (enabled("AlwaysShowDownloads")) p.setResult(true);
+                }
+            });
+        } catch (Throwable e) {
+            Utils.loge(e);
+        }
         try {
             final Class<?> icon = Class.forName("org.telegram.ui.sx", false, Initiator.getHostClassLoader());
             hook(exact(icon, "a"), new XC_MethodHook(-10000) {
