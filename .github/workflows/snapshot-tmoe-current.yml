@@ -1,0 +1,45 @@
+name: Snapshot current TMoe sources
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/snapshot-tmoe-current.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current TMoe main
+        uses: actions/checkout@v6
+        with:
+          repository: cinit/TMoe
+          ref: 25043bcd95f0d58694c046d691c921915e763aac
+          path: TMoe-current
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Record provenance
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd TMoe-current
+          git rev-parse HEAD > ../TMoe-current-COMMIT.txt
+          git status --porcelain > ../TMoe-current-STATUS.txt
+          find app/src/main -type f | sort > ../TMoe-current-FILES.txt
+
+      - name: Upload current sources
+        uses: actions/upload-artifact@v7
+        with:
+          name: TMoe-current-source
+          path: |
+            TMoe-current/
+            TMoe-current-COMMIT.txt
+            TMoe-current-STATUS.txt
+            TMoe-current-FILES.txt
+          include-hidden-files: true
+          compression-level: 6
+          retention-days: 7
