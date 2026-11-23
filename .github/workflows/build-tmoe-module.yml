@@ -6,6 +6,7 @@ on:
       - telegram-13.2.2-tmoe-build
     paths:
       - ".github/workflows/build-tmoe-module.yml"
+      - "telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py"
   workflow_dispatch:
 
 permissions:
@@ -36,6 +37,11 @@ jobs:
           git checkout --detach FETCH_HEAD
           git submodule update --init --recursive --depth=1
 
+      - name: Patch TMoe for obfuscated Telegram 13.3.1 settings
+        shell: bash
+        run: |
+          python3 telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py
+
       - name: Configure Android SDK
         shell: bash
         run: |
@@ -56,5 +62,5 @@ jobs:
       - name: Upload TMoe APK
         uses: actions/upload-artifact@v4
         with:
-          name: TMoe-module-debug
+          name: TMoe-module-telegram-13.3.1
           path: tmoe/app/build/outputs/apk/debug/*.apk
