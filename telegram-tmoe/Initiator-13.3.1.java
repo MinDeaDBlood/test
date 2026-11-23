@@ -3,6 +3,8 @@ package cc.ioctl.tmoe.util;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import cc.ioctl.tmoe.compat.Telegram13ClassResolver;
+
 /** Host class reference with Telegram 13.3.1 R8 compatibility. */
 public class Initiator {
     private static ClassLoader sHostClassLoader;
