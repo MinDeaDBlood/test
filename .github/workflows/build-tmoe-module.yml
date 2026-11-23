@@ -8,6 +8,9 @@ on:
       - ".github/workflows/build-tmoe-module.yml"
       - "telegram-tmoe/patch-tmoe-13.3.1-obfuscated-settings.py"
       - "telegram-tmoe/SettingEntryHook-13.3.1.java"
+      - "telegram-tmoe/HostDexClassScanner.java"
+      - "telegram-tmoe/NativeSettingsDialog.java"
+      - "telegram-tmoe/MainStartInit-13.3.1.java"
   workflow_dispatch:
 
 permissions:
@@ -38,13 +41,17 @@ jobs:
           git checkout --detach FETCH_HEAD
           git submodule update --init --recursive --depth=1
 
-      - name: Install Telegram 13.3.1 native TMoe settings hook
+      - name: Install Telegram 13.3.1 resilient TMoe integration
         shell: bash
         run: |
           set -euxo pipefail
           cp telegram-tmoe/SettingEntryHook-13.3.1.java             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
-          grep -q 'org.telegram.ui.y41'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
-          grep -q 'headerFactory'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
+          cp telegram-tmoe/HostDexClassScanner.java             tmoe/app/src/main/java/cc/ioctl/tmoe/util/HostDexClassScanner.java
+          cp telegram-tmoe/NativeSettingsDialog.java             tmoe/app/src/main/java/cc/ioctl/tmoe/fragment/NativeSettingsDialog.java
+          cp telegram-tmoe/MainStartInit-13.3.1.java             tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
+          grep -q 'HostDexClassScanner'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
+          grep -q 'NativeSettingsDialog'             tmoe/app/src/main/java/cc/ioctl/tmoe/hook/core/SettingEntryHook.java
+          grep -q 'proxy fragment unavailable'             tmoe/app/src/main/java/cc/ioctl/tmoe/base/MainStartInit.java
 
       - name: Configure Android SDK
         shell: bash
@@ -66,5 +73,5 @@ jobs:
       - name: Upload TMoe APK
         uses: actions/upload-artifact@v4
         with:
-          name: TMoe-module-telegram-13.3.1
+          name: TMoe-module-telegram-13.3.1-r8-resilient
           path: tmoe/app/build/outputs/apk/debug/*.apk
