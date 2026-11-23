@@ -200,42 +200,7 @@ public class Theme {
 
     private static Method sThemeGetColor3 = null;
     private static Method sThemeGetColorI3 = null;
-    private static Class<?> sResolvedThemeClass = null;
-    private static boolean sThemeClassScanDone = false;
-
     private static final HashMap<String, Integer> sCachedColorKeyIndex = new HashMap<>();
-
-    private static boolean isThemeCandidate(Class<?> candidate) {
-        if (candidate == null) return false;
-        boolean hasIntColor3 = false;
-        boolean hasIntColor1 = false;
-        int staticIntFields = 0;
-        try {
-            for (Field field : candidate.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers()) && field.getType() == int.class) {
-                    staticIntFields++;
-                }
-            }
-            for (Method method : candidate.getDeclaredMethods()) {
-                if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != Integer.TYPE) {
-                    continue;
-                }
-                Class<?>[] p = method.getParameterTypes();
-                if (p.length == 3 && p[0] == int.class
-                        && p[1] == boolean[].class && p[2] == boolean.class) {
-                    hasIntColor3 = true;
-                } else if (p.length == 1 && p[0] == int.class) {
-                    hasIntColor1 = true;
-                }
-            }
-        } catch (Throwable ignored) {
-            return false;
-        }
-        // Telegram Theme owns hundreds of integer color keys. The old method-only
-        // resolver could accidentally select another R8 class with the same two
-        // helper signatures, which produced the "rainbow" settings screen.
-        return hasIntColor3 && hasIntColor1 && staticIntFields >= 100;
-    }
 
     private static Method sThemeGetColorI1 = null;
     private static Method sThemeNameToKey = null;
