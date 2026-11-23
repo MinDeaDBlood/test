@@ -106,7 +106,7 @@ public final class NativeSettingsDialog {
             final ThemedRecyclerListView.SelectionAdapter adapter = new ThemedRecyclerListView.SelectionAdapter() {
                 @Override
                 public boolean isEnabled(RecyclerView.ViewHolder holder) {
-                    int p = holder.getBindingAdapterPosition();
+                    int p = holder.getAdapterPosition();
                     return p >= 0 && p < items.size() && items.get(p).isEnabled();
                 }
 
