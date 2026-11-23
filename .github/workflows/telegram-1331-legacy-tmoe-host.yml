@@ -91,14 +91,10 @@ jobs:
           set -euxo pipefail
           cat >> telegram/TMessagesProj/proguard-rules.pro <<'PRO'
 
-          # TMoe/TeleVIP compatibility surface recovered from ExTelegram 12.7.1.
-          # Keep names and members used reflectively by the module, while leaving
-          # the rest of Telegram available for normal R8 optimization.
+          # Legacy TMoe/ExTelegram 12.7.1 compatibility surface.
           -keep,allowoptimization class org.telegram.messenger.AccountInstance { *; }
           -keep,allowoptimization class org.telegram.messenger.AndroidUtilities { *; }
           -keep,allowoptimization class org.telegram.messenger.ApplicationLoader { *; }
-          # TMoe resolves a few host resource IDs by reflection. Official R8
-          # normally removes these generated classes, so keep them explicitly.
           -keep,allowoptimization class org.telegram.messenger.R { *; }
           -keep,allowoptimization class org.telegram.messenger.R$* { *; }
           -keep,allowoptimization class org.telegram.messenger.BaseController { *; }
@@ -152,7 +148,6 @@ jobs:
           -keep,allowoptimization class org.telegram.ui.ActionBar.BaseFragment { *; }
           -keep,allowoptimization class org.telegram.ui.ActionBar.Theme { *; }
 
-          -keep,allowoptimization class org.telegram.ui.Adapters.DrawerLayoutAdapter { *; }
           -keep,allowoptimization class org.telegram.ui.Adapters.MentionsAdapter { *; }
           -keep,allowoptimization class org.telegram.ui.Cells.ChatMessageCell { *; }
           -keep,allowoptimization class org.telegram.ui.Cells.TextSettingsCell { *; }
@@ -187,35 +182,45 @@ jobs:
           cd telegram
           chmod +x gradlew
           ./gradlew --no-daemon --stacktrace :TMessagesProj_AppStandalone:assembleAfatStandalone
-
           APK="$(find TMessagesProj_AppStandalone/build/outputs/apk -type f -name '*.apk' | head -n 1)"
           MAP="$(find TMessagesProj_AppStandalone/build/outputs/mapping -type f -name mapping.txt | head -n 1)"
           test -n "$APK"
           mkdir -p ../out
           cp "$APK" ../out/Telegram-13.3.1-TMoe-compat-host.apk
-          if [ -n "$MAP" ]; then
-            cp "$MAP" ../out/mapping.txt
-          fi
+          cp "$MAP" ../out/mapping.txt
           sha256sum ../out/Telegram-13.3.1-TMoe-compat-host.apk | tee ../out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
+
+      - name: Verify preserved API names in mapping
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for C in \
+            org.telegram.messenger.ApplicationLoader \
+            org.telegram.messenger.MessageObject \
+            org.telegram.messenger.MessagesController \
+            org.telegram.messenger.UserConfig \
+            org.telegram.messenger.SharedConfig \
+            org.telegram.ui.ActionBar.Theme \
+            org.telegram.ui.ActionBar.BaseFragment \
+            org.telegram.ui.ChatActivity \
+            org.telegram.ui.Cells.ChatMessageCell \
+            org.telegram.ui.Stories.StoriesController; do
+            grep -E "^$C -> $C:$" out/mapping.txt || {
+              echo "NOT PRESERVED: $C"
+              grep -E "^$C -> " out/mapping.txt || true
+              exit 1
+            }
+          done
 
       - name: Verify tgnet LOGS_ENABLED export
         shell: bash
         run: |
           set -euxo pipefail
-          APK=out/Telegram-13.3.1-TMoe-compat-host.apk
           mkdir -p native-check
-          unzip -j "$APK" 'lib/arm64-v8a/libtmessages.49.so' -d native-check
+          unzip -j out/Telegram-13.3.1-TMoe-compat-host.apk \
+            'lib/arm64-v8a/libtmessages.49.so' -d native-check
           readelf -Ws native-check/libtmessages.49.so | tee out/libtmessages-symbols.txt
-          grep -E '[[:space:]]LOGS_ENABLED          set -euxo pipefail
-          if [ -s out/mapping.txt ]; then
-            for C in               org.telegram.messenger.ApplicationLoader               org.telegram.messenger.MessageObject               org.telegram.messenger.MessagesController               org.telegram.messenger.UserConfig               org.telegram.messenger.SharedConfig               org.telegram.ui.ActionBar.Theme               org.telegram.ui.ActionBar.BaseFragment               org.telegram.ui.ChatActivity               org.telegram.ui.Cells.ChatMessageCell               org.telegram.ui.Stories.StoriesController; do
-              grep -E "^$C -> $C:$" out/mapping.txt || {
-                echo "NOT PRESERVED: $C"
-                grep -E "^$C -> " out/mapping.txt || true
-                exit 1
-              }
-            done
-          fi
+          grep -E '[[:space:]]LOGS_ENABLED$' out/libtmessages-symbols.txt
 
       - name: Upload host
         uses: actions/upload-artifact@v4
@@ -226,31 +231,5 @@ jobs:
             out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
             out/mapping.txt
             out/libtmessages-symbols.txt
-          if-no-files-found: error
-          retention-days: 30
- out/libtmessages-symbols.txt
-
-      - name: Verify preserved API names in mapping
-        shell: bash
-        run: |
-          set -euxo pipefail
-          if [ -s out/mapping.txt ]; then
-            for C in               org.telegram.messenger.ApplicationLoader               org.telegram.messenger.MessageObject               org.telegram.messenger.MessagesController               org.telegram.messenger.UserConfig               org.telegram.messenger.SharedConfig               org.telegram.ui.ActionBar.Theme               org.telegram.ui.ActionBar.BaseFragment               org.telegram.ui.ChatActivity               org.telegram.ui.Cells.ChatMessageCell               org.telegram.ui.Stories.StoriesController; do
-              grep -E "^$C -> $C:$" out/mapping.txt || {
-                echo "NOT PRESERVED: $C"
-                grep -E "^$C -> " out/mapping.txt || true
-                exit 1
-              }
-            done
-          fi
-
-      - name: Upload host
-        uses: actions/upload-artifact@v4
-        with:
-          name: Telegram-13.3.1-TMoe-compat-host
-          path: |
-            out/Telegram-13.3.1-TMoe-compat-host.apk
-            out/Telegram-13.3.1-TMoe-compat-host.apk.sha256
-            out/mapping.txt
           if-no-files-found: error
           retention-days: 30
