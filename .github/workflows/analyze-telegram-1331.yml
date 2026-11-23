@@ -1,0 +1,52 @@
+name: Analyze Telegram 13.3.1 settings
+
+on:
+  push:
+    branches:
+      - telegram-13.2.2-tmoe-build
+    paths:
+      - ".github/workflows/analyze-telegram-1331.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: telegram-13.2.2-tmoe-build
+
+      - name: Download current Telegram APK
+        shell: bash
+        run: |
+          curl -L --fail --retry 3 -o Telegram.apk https://telegram.org/dl/android/apk
+          sha256sum Telegram.apk
+          ls -lh Telegram.apk
+
+      - name: Download JADX
+        shell: bash
+        run: |
+          curl -L --fail --retry 3 -o jadx.zip https://github.com/skylot/jadx/releases/download/v1.5.7/jadx-1.5.7.zip
+          echo "1755e4242ade71a077438723689f404079592ec7764a3a0572f98fef94ebcbf3  jadx.zip" | sha256sum -c -
+          unzip -q jadx.zip -d jadx
+          chmod +x jadx/bin/jadx
+
+      - name: Decompile candidate settings classes
+        shell: bash
+        run: |
+          mkdir -p out
+          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.y41 --single-class-output out/SettingsCandidate.java Telegram.apk || true
+          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.ProfileActivity --single-class-output out/ProfileActivity.java Telegram.apk || true
+          echo "===== Settings candidate ====="
+          sed -n '1,1400p' out/SettingsCandidate.java || true
+          echo "===== Profile hooks ====="
+          grep -nE "createView|language|PowerUsage|TelegramPremium|Stars|UniversalRecycler|fillItems|onClick" out/ProfileActivity.java | head -300 || true
+
+      - name: Upload analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: Telegram-13.3.1-settings-analysis
+          path: out/
