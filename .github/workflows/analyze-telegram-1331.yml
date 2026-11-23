@@ -40,10 +40,21 @@ jobs:
           mkdir -p out
           jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.y41 --single-class-output out/SettingsCandidate.java Telegram.apk || true
           jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.ProfileActivity --single-class-output out/ProfileActivity.java Telegram.apk || true
+          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.u41 --single-class-output out/SettingCellFactory.java Telegram.apk || true
+          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.Components.j51 --single-class-output out/UItem.java Telegram.apk || true
+          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.b5 --single-class-output out/FillCallback.java Telegram.apk || true
+          jadx/bin/jadx --log-level ERROR --single-class org.telegram.ui.p41 --single-class-output out/ClickCallback.java Telegram.apk || true
           echo "===== Settings candidate ====="
           sed -n '1,1400p' out/SettingsCandidate.java || true
           echo "===== Profile hooks ====="
           grep -nE "createView|language|PowerUsage|TelegramPremium|Stars|UniversalRecycler|fillItems|onClick" out/ProfileActivity.java | head -300 || true
+          echo "===== SettingCell factory ====="
+          cat out/SettingCellFactory.java || true
+          echo "===== UItem factories ====="
+          grep -nE "static .* (C|u|r|i)\(" out/UItem.java | head -120 || true
+          echo "===== callbacks ====="
+          cat out/FillCallback.java || true
+          cat out/ClickCallback.java || true
 
       - name: Upload analysis
         uses: actions/upload-artifact@v4
