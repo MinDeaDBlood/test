@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import cc.ioctl.tmoe.hook.core.SettingEntryHook;
 import cc.ioctl.tmoe.util.HostInfo;
 import cc.ioctl.tmoe.util.Initiator;
+import cc.ioctl.tmoe.util.Telegram13ClassLoader;
 import cc.ioctl.tmoe.util.Utils;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -31,14 +32,11 @@ public final class Telegram13Bootstrap {
     private static Method resolveApplicationOnCreate(ClassLoader classLoader) throws Throwable {
         Class<?> appClass = null;
 
-        // Older/non-obfuscated Telegram builds.
         try {
             appClass = classLoader.loadClass("org.telegram.messenger.ApplicationLoader");
         } catch (ClassNotFoundException ignored) {
         }
 
-        // Telegram 13.3.1 official standalone APK:
-        // ApplicationLoaderImpl -> R8-obfuscated Application subclass (s0) -> Application.
         if (appClass == null) {
             appClass = classLoader.loadClass("org.telegram.messenger.ApplicationLoaderImpl");
         }
@@ -74,7 +72,8 @@ public final class Telegram13Bootstrap {
                     Application app = (Application) param.thisObject;
                     try {
                         HostInfo.setHostApplication(app);
-                        Initiator.initWithHostClassLoader(app.getClassLoader());
+                        Initiator.initWithHostClassLoader(
+                                Telegram13ClassLoader.getOrCreate(app.getClassLoader()));
                     } catch (Throwable e) {
                         Utils.loge(e);
                     }
