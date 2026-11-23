@@ -64,6 +64,10 @@ jobs:
           -keep,allowoptimization class org.telegram.messenger.AccountInstance { *; }
           -keep,allowoptimization class org.telegram.messenger.AndroidUtilities { *; }
           -keep,allowoptimization class org.telegram.messenger.ApplicationLoader { *; }
+          # TMoe resolves a few host resource IDs by reflection. Official R8
+          # normally removes these generated classes, so keep them explicitly.
+          -keep,allowoptimization class org.telegram.messenger.R { *; }
+          -keep,allowoptimization class org.telegram.messenger.R$* { *; }
           -keep,allowoptimization class org.telegram.messenger.BaseController { *; }
           -keep,allowoptimization class org.telegram.messenger.BuildVars { *; }
           -keep,allowoptimization class org.telegram.messenger.ChatObject { *; }
