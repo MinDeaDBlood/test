@@ -70,4 +70,5 @@ jobs:
           ./gradlew --no-daemon --stacktrace \
             :TMessagesProj:compileReleaseKotlin \
             :TMessagesProj:compileReleaseJavaWithJavac \
-            :TMessagesProj_App:processAfatReleaseMainManifest
+            :TMessagesProj_App:processAfatReleaseMainManifest \
+            :TMessagesProj_App:minifyAfatReleaseWithR8
