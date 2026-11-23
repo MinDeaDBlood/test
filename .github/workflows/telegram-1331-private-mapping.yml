@@ -1,4 +1,5 @@
 name: Telegram 13.3.1 Telegram.org-like R8 mapping
+# refresh: 20261123T165730Z
 
 on:
   workflow_dispatch:
